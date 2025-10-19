@@ -31,7 +31,8 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/books/**").authenticated()
+                        .requestMatchers("/api/books/**").hasAnyAuthority("ADMIN", "LIBRARIAN", "MEMBER")
+                        .requestMatchers("/api/admin/**").hasAnyAuthority("ADMIN")
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

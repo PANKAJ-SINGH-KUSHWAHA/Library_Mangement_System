@@ -1,23 +1,11 @@
-import axios from "axios";
+import api from "./apiClient";
 
-const API_URL = "http://localhost:8081/api/auth"; // backend URL
+export const register = (payload) => api.post("/auth/register", payload).then(r => r.data);
+export const login = (payload) => api.post("/auth/login", payload).then(r => r.data);
+export const verifyEmail = (code) => api.get(`/auth/verify?code=${encodeURIComponent(code)}`).then(r => r.data);
 
-export const register = async (user) => {
-  const response = await axios.post(`${API_URL}/register`, user);
-  return response.data;
-};
+export const requestPasswordReset = (email) =>
+  api.post("/auth/password-reset/request", { email }).then(r => r.data);
 
-export const login = async (user) => {
-  const response = await axios.post(`${API_URL}/login`, user);
-  if (response.data.token) {
-    localStorage.setItem("token", response.data.token);
-    localStorage.setItem("role", response.data.role);
-    localStorage.setItem("email", response.data.email);
-    localStorage.setItem("firstName", response.data.firstName);
-  }
-  return response.data;
-};
-
-export const logout = () => {
-  localStorage.clear();
-};
+export const confirmPasswordReset = ({ email, otp, newPassword }) =>
+  api.post("/auth/password-reset/confirm", { email, otp, newPassword }).then(r => r.data);

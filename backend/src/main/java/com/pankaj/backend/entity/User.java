@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Entity
@@ -34,4 +35,17 @@ public class User {
     private Boolean active = true;
     private Date joinDate = new Date();
     private Date createdAt = new Date();
+
+    @Column(nullable = false)
+    private boolean enabled = false;
+
+    @Column
+    private String verificationCode;
+
+    @Column
+    private String resetOtp;
+
+    @Column
+    private LocalDateTime otpExpiry;
+
 }

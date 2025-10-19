@@ -1,26 +1,42 @@
-import { Link } from "react-router-dom";
-import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-export default function Navbar() {
-  const { token, logout } = useContext(AuthContext);
+const Navbar = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
-    <nav className="bg-gray-800 text-white p-4 flex justify-between">
-      <div className="font-bold">Library App</div>
-      <div className="space-x-4">
-        {!token ? (
+    <nav className="flex justify-between items-center px-6 py-3 border-b shadow-sm">
+      <div className="flex items-center gap-6">
+        <Link to="/" className="font-bold text-xl">Librario</Link>
+        <Link to="/books">Books</Link>
+      </div>
+
+      <div className="flex items-center gap-4">
+        {user ? (
           <>
-            <Link to="/login" className="hover:text-gray-300">Login</Link>
-            <Link to="/register" className="hover:text-gray-300">Register</Link>
+            <span className="font-medium">{user.firstName}</span>
+            <button
+              onClick={handleLogout}
+              className="text-red-500 hover:underline"
+            >
+              Logout
+            </button>
           </>
         ) : (
           <>
-            <Link to="/dashboard" className="hover:text-gray-300">Dashboard</Link>
-            <button onClick={logout} className="hover:text-gray-300">Logout</button>
+            <Link to="/login" className="hover:underline">Login</Link>
+            <Link to="/register" className="hover:underline">Register</Link>
           </>
         )}
       </div>
     </nav>
   );
-}
+};
+
+export default Navbar;

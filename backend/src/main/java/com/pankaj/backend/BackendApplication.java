@@ -19,6 +19,12 @@ public class BackendApplication {
 			propagateIfAbsent(dotenv, "DB_USERNAME");
 			propagateIfAbsent(dotenv, "DB_PASSWORD");
 			propagateIfAbsent(dotenv, "APP_JWT_SECRET");
+			propagateIfAbsent(dotenv, "SPRING_MAIL_HOST");
+			propagateIfAbsent(dotenv, "SPRING_MAIL_PORT");
+			propagateIfAbsent(dotenv, "SPRING_MAIL_USERNAME");
+			propagateIfAbsent(dotenv, "SPRING_MAIL_PASSWORD");
+			propagateIfAbsent(dotenv, "SPRING_MAIL_SMTP_AUTH");
+			propagateIfAbsent(dotenv, "SPRING_MAIL_STARTTLS");
 		} catch (Throwable t) {
 			// Non-fatal: proceed without .env if something goes wrong
 			System.err.println("Warning: failed to load .env: " + t.getMessage());
