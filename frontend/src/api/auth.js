@@ -8,4 +8,12 @@ export const requestPasswordReset = (email) =>
   api.post("/auth/password-reset/request", { email }).then(r => r.data);
 
 export const confirmPasswordReset = ({ email, otp, newPassword }) =>
-  api.post("/auth/password-reset/confirm", { email, otp, newPassword }).then(r => r.data);
+  api.post("/auth/password-reset/verify", { email, otp, newPassword }).then(r => r.data);
+
+export const updatePassword = ({ email, currentPassword, newPassword }) => {
+  return axios.post("http://localhost:8081/api/auth/password-change", {
+    email,
+    oldPassword: currentPassword,
+    newPassword
+  });
+};

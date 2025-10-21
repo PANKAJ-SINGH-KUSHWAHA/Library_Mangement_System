@@ -9,6 +9,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import PasswordResetRequest from "./pages/PasswordResetRequest";
 import PasswordResetConfirm from "./pages/PasswordResetConfirm";
 import PrivateRoute from "./components/PrivateRoute";
+import Settings from "./components/Settings";
 
 export default function App() {
   return (
@@ -21,7 +22,7 @@ export default function App() {
         <Route path="/verify" element={<VerifyEmail />} />
         <Route path="/password-reset" element={<PasswordResetRequest />} />
         <Route path="/password-reset/confirm" element={<PasswordResetConfirm />} />
-
+        <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
         <Route path="/books" element={<Books />} />
         <Route path="/manage-books" element={<PrivateRoute><ManageBooks /></PrivateRoute>} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />

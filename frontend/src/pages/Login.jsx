@@ -1,13 +1,18 @@
 import axios from "axios";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import PasswordResetRequest from "./PasswordResetRequest";
+
 
 const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [showReset, setShowReset] = useState(false);
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,6 +49,14 @@ const Login = () => {
     }
   };
 
+   if (showReset) {
+    return (
+      <PasswordResetRequest
+        onBack={() => setShowReset(false)}
+      />
+    );
+  }
+
   return (
     <div className="max-w-md mx-auto mt-20 p-6 bg-white shadow-md rounded-lg">
       <h2 className="text-2xl font-bold mb-4">Login</h2>
@@ -65,12 +78,22 @@ const Login = () => {
           className="border rounded p-2"
           required
         />
+        
         <button
           type="submit"
           className="bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
         >
           Login
         </button>
+        <div className="text-center mt-2">
+          <button
+            type="button"
+            className="text-blue-600 hover:underline"
+            onClick={() => setShowReset(true)}
+          >
+            Forgot Password?
+          </button>
+        </div>
       </form>
     </div>
   );
