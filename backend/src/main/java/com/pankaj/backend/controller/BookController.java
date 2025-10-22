@@ -56,10 +56,10 @@ public class BookController {
                 .map(book -> {
                     book.setTitle(updatedBook.getTitle());
                     book.setAuthor(updatedBook.getAuthor());
-                    book.setCategories(updatedBook.getCategories());
                     book.setPublisher(updatedBook.getPublisher());
                     book.setTotalCopies(updatedBook.getTotalCopies());
                     book.setAvailableCopies(updatedBook.getAvailableCopies());
+                    book.setImageUrl(updatedBook.getImageUrl());
                     return ResponseEntity.ok(bookRepository.save(book));
                 }).orElse(ResponseEntity.notFound().build());
     }

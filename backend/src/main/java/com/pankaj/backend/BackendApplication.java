@@ -40,7 +40,7 @@ public class BackendApplication {
 			if (System.getenv(key) != null) return;
 
 			String val = dotenv.get(key);
-			if (val != null && !val.isBlank()) {
+			if (val != null && !val.isBlank()) 
 				System.setProperty(key, val);
 			}
 		} catch (Exception ignored) {

@@ -28,6 +28,8 @@ public class Book {
     private Date publishedDate;
     private Date createdAt = new Date();
 
+    private String imageUrl;
+
     // Many-to-many relationship with Category
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

@@ -176,10 +176,25 @@ export default function Books() {
                 className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all hover:scale-105 transform group"
               >
                 {/* Book Cover Placeholder */}
-                <div className="h-48 bg-gradient-to-br from-indigo-400 via-purple-400 to-pink-400 flex items-center justify-center relative overflow-hidden">
-                  <BookOpen className="w-20 h-20 text-white opacity-50" />
+                <div className="h-48 flex items-center justify-center relative overflow-hidden rounded-t-xl group">
+                  {book.imageUrl ? (
+                    <img
+                      src={book.imageUrl}
+                      alt={book.title}
+                      className="w-full h-full object-contain transition-transform duration-300 hover:scale-105"
+                      onError={(e) => {
+                        e.target.src = ""; // fallback to gradient if image fails
+                      }}
+                    />
+                  ) : (
+                    <div className="h-48 bg-gradient-to-br from-indigo-400 via-purple-400 to-pink-400 flex items-center justify-center w-full">
+                      <BookOpen className="w-20 h-20 text-white opacity-50" />
+                    </div>
+                  )}
+
+                  {/* Overlay for hover effect */}
                   <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity"></div>
-                  
+
                   {/* Availability Badge */}
                   {book.availableCopies > 0 ? (
                     <div className="absolute top-3 right-3 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
@@ -201,16 +216,16 @@ export default function Books() {
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-gray-600">
                       <User className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-sm truncate">{book.author}</span>
+                      <span className="text-sm truncate"><strong>Author:</strong> {book.author}</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-600">
                       <Building2 className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-sm truncate">{book.publisher}</span>
+                      <span className="text-sm truncate"><strong>Publisher: </strong>{book.publisher}</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-600">
                       <Package className="w-4 h-4 flex-shrink-0" />
                       <span className="text-sm font-medium">
-                        {book.availableCopies} {book.availableCopies === 1 ? 'copy' : 'copies'} available
+                        <strong>Available Copies: </strong>{book.availableCopies} {book.availableCopies === 1 ? 'copy' : 'copies'} available
                       </span>
                     </div>
                   </div>
