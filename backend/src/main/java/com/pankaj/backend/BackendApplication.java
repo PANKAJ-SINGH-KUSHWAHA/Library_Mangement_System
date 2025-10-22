@@ -1,8 +1,9 @@
 package com.pankaj.backend;
 
-import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+import io.github.cdimascio.dotenv.Dotenv;
 
 
 @SpringBootApplication
@@ -43,7 +44,7 @@ public class BackendApplication {
 			if (val != null && !val.isBlank()) 
 				System.setProperty(key, val);
 			}
-		} catch (Exception ignored) {
+		catch (Exception ignored) {
 			// ignore missing key or other issues
 		}
 	}
