@@ -5,11 +5,13 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Books from "./pages/Books";
 import ManageBooks from "./pages/ManageBooks";
+import ManageBookForm from "./pages/ManageBookForm";
 import VerifyEmail from "./pages/VerifyEmail";
 import PasswordResetRequest from "./pages/PasswordResetRequest";
 import PasswordResetConfirm from "./pages/PasswordResetConfirm";
 import PrivateRoute from "./components/PrivateRoute";
 import Settings from "./components/Settings";
+import UserManagement from "./pages/UserManagement";
 
 export default function App() {
   return (
@@ -25,6 +27,9 @@ export default function App() {
         <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
         <Route path="/books" element={<Books />} />
         <Route path="/manage-books" element={<PrivateRoute><ManageBooks /></PrivateRoute>} />
+        <Route path="/manage-books/add" element={<PrivateRoute><ManageBookForm /></PrivateRoute>} />
+        <Route path="/manage-books/edit/:id" element={<PrivateRoute><ManageBookForm /></PrivateRoute>} />
+        <Route path="/users" element={<PrivateRoute><UserManagement /></PrivateRoute>} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       </Routes>
     </>

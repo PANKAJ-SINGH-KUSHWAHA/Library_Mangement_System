@@ -37,7 +37,7 @@ const Login = () => {
 
       // decide where to navigate after login
       const role = payload.role;
-      if (role === "ADMIN") navigate("/admin");
+      if (role === "ADMIN") navigate("/");
       else if (role === "LIBRARIAN") navigate("/librarian");
       else navigate("/dashboard");
     } catch (err) {

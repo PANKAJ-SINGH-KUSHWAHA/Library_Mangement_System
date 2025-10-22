@@ -19,15 +19,27 @@ const Navbar = () => {
       <div className="flex items-center gap-4">
         {user ? (
           <>
-            <Link to="/" className="font-medium">{user.firstName}</Link>
-            <Link to="/books">Books</Link>
-            <Link
-              to="/settings"
-              className="text-blue-600 hover:underline"
-            >
+            <Link to={"/"} className="font-medium">{user.firstName}</Link>
+            <Link to="/books" className="hover:underline">Books</Link>
+
+            {/* User-specific link */}
+            {user.role === "USER" && (
+              <Link to="/my-borrows" className="hover:underline">
+                My Borrowed Books
+              </Link>
+            )}
+
+            {/* Admin/Librarian links */}
+            {(user.role === "ADMIN" || user.role === "LIBRARIAN") && (
+              <Link to="/manage-books" className="hover:underline">
+                Manage Books
+              </Link>
+            )}
+
+            <Link to="/settings" className="text-blue-600 hover:underline">
               Settings
             </Link>
-            
+
             <button
               onClick={handleLogout}
               className="text-red-500 hover:underline"
