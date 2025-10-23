@@ -12,6 +12,7 @@ import PasswordResetConfirm from "./pages/PasswordResetConfirm";
 import PrivateRoute from "./components/PrivateRoute";
 import Settings from "./components/Settings";
 import UserManagement from "./pages/UserManagement";
+import MyBorrowedBooks from "./pages/MyBorrowedBooks";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/password-reset/confirm" element={<PasswordResetConfirm />} />
         <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
         <Route path="/books" element={<Books />} />
+        <Route path="/my-borrows" element={<PrivateRoute><MyBorrowedBooks /></PrivateRoute>} />
         <Route path="/manage-books" element={<PrivateRoute><ManageBooks /></PrivateRoute>} />
         <Route path="/manage-books/add" element={<PrivateRoute><ManageBookForm /></PrivateRoute>} />
         <Route path="/manage-books/edit/:id" element={<PrivateRoute><ManageBookForm /></PrivateRoute>} />

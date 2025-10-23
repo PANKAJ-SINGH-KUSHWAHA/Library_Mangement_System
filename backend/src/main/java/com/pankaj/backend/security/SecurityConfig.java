@@ -39,8 +39,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                                 .requestMatchers("/api/auth/**").permitAll()
                                 .requestMatchers("/api/books/**").hasAnyAuthority("ADMIN", "LIBRARIAN", "MEMBER")
-                                .requestMatchers("/api/admin/**").hasAnyAuthority("ADMIN")
-                                .anyRequest().permitAll()
+                                .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+                                .requestMatchers("/api/borrow/all").hasAnyAuthority("ADMIN", "LIBRARIAN")
+                                .requestMatchers("/api/borrow/**").hasAnyAuthority("ADMIN", "LIBRARIAN", "MEMBER")
+                                .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

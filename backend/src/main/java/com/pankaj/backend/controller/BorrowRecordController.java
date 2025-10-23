@@ -4,6 +4,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pankaj.backend.dto.BorrowRecordDTO;
+import com.pankaj.backend.dto.UserBorrowRecordDTO;
 import com.pankaj.backend.entity.Book;
 import com.pankaj.backend.entity.BorrowRecord;
 import com.pankaj.backend.entity.BorrowStatus;
@@ -31,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @CrossOrigin
 public class BorrowRecordController {
+    private static final Logger logger = LoggerFactory.getLogger(BorrowRecordController.class);
 
     private final BorrowRecordRepository borrowRecordRepository;
     private final BookRepository bookRepository;
@@ -38,13 +42,36 @@ public class BorrowRecordController {
 
     // Get all borrowed books by user
     @GetMapping("/{email}")
-    @PreAuthorize("hasAuthority('MEMBER')")
-    public ResponseEntity<List<BorrowRecord>> getUserBorrowedBooks(@PathVariable String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        List<BorrowRecord> records = borrowRecordRepository.findByUser(user);
-        return ResponseEntity.ok(records);
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN', 'MEMBER')")
+    public ResponseEntity<?> getUserBorrowedBooks(@PathVariable String email) {
+        try {
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            List<UserBorrowRecordDTO> recordDTOs = borrowRecordRepository.findByUser(user).stream()
+                .map(record -> new UserBorrowRecordDTO(
+                    record.getId(),
+                    record.getBook().getTitle(),
+                    record.getBorrowDate() != null ? 
+                        new java.sql.Date(record.getBorrowDate().getTime()).toLocalDate() : 
+                        null,
+                    record.getDueDate() != null ? 
+                        new java.sql.Date(record.getDueDate().getTime()).toLocalDate() : 
+                        null,
+                    record.getReturnDate() != null ? 
+                        new java.sql.Date(record.getReturnDate().getTime()).toLocalDate() : 
+                        null,
+                    record.getStatus().toString()
+                ))
+                .collect(Collectors.toList());
+            
+            return ResponseEntity.ok(recordDTOs);
+        } catch (Exception e) {
+            logger.error("Error fetching borrow records for user {}: {}", email, e.getMessage());
+            return ResponseEntity.badRequest().body("Error fetching borrow records: " + e.getMessage());
+        }
     }
+
 
     //  Borrow a book
     @PostMapping("/{bookId}")
@@ -86,18 +113,31 @@ public class BorrowRecordController {
     }
 
     @GetMapping("/all")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN')")
     public ResponseEntity<List<BorrowRecordDTO>> getAllBorrows() {
-        List<BorrowRecordDTO> dtos = borrowRecordRepository.findAll().stream()
-            .map(r -> new BorrowRecordDTO(
-            r.getId(),
-            r.getUser().getFirstName(),  // 1st param
-            r.getStatus().toString(),    // 2nd param
-            r.getUser().getEmail(),      // 3rd param
-            r.getBook().getTitle()       // 4th param
-        ))
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        try {
+            List<BorrowRecordDTO> dtos = borrowRecordRepository.findAllWithDetails().stream()
+                .map(r -> new BorrowRecordDTO(
+                    r.getId(),
+                    r.getUser().getFirstName(),
+                    r.getStatus().toString(),
+                    r.getUser().getEmail(),
+                    r.getBook().getTitle(),
+                    r.getDueDate() != null ? 
+                        new java.sql.Date(r.getDueDate().getTime()).toLocalDate() : 
+                        null,
+                    r.getReturnDate() != null ? 
+                        new java.sql.Date(r.getReturnDate().getTime()).toLocalDate() : 
+                        null
+                ))
+                .collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            logger.error("Error fetching borrow records: ", e);
+            return ResponseEntity.badRequest().body(null);
+        }
     }
+
 
 
     @PutMapping("/return/{recordId}")

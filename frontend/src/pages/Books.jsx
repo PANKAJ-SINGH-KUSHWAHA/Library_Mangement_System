@@ -266,7 +266,7 @@ export default function Books() {
         )}
       </div>
 
-      <style jsx>{`
+      <style jsx="true">{`
         @keyframes slide-in {
           from {
             transform: translateX(100%);

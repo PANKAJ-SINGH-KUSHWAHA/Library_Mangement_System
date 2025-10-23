@@ -33,7 +33,7 @@ export default function Dashboard() {
       icon: BookMarked,
       link: "/my-borrows",
       color: "from-purple-500 to-pink-500",
-      show: role === "USER"
+      show: role === "MEMBER"
     },
     {
       title: "Manage Books",
