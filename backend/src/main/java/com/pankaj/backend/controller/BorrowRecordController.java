@@ -72,6 +72,34 @@ public class BorrowRecordController {
         }
     }
 
+        @GetMapping("/book/{bookId}")
+        @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN')")
+        public ResponseEntity<List<BorrowRecordDTO>> getBookBorrowHistory(@PathVariable String bookId) {
+            try {
+                Book book = bookRepository.findById(bookId)
+                        .orElseThrow(() -> new RuntimeException("Book not found"));
+            
+                List<BorrowRecordDTO> dtos = borrowRecordRepository.findByBook(book).stream()
+                    .map(r -> new BorrowRecordDTO(
+                        r.getId(),
+                        r.getUser().getFirstName(),
+                        r.getStatus().toString(),
+                        r.getUser().getEmail(),
+                        r.getBook().getTitle(),
+                        r.getDueDate() != null ? 
+                            new java.sql.Date(r.getDueDate().getTime()).toLocalDate() : 
+                            null,
+                        r.getReturnDate() != null ? 
+                            new java.sql.Date(r.getReturnDate().getTime()).toLocalDate() : 
+                            null
+                    ))
+                    .collect(Collectors.toList());
+                return ResponseEntity.ok(dtos);
+            } catch (Exception e) {
+                logger.error("Error fetching borrow records for book {}: {}", bookId, e.getMessage());
+                return ResponseEntity.badRequest().body(null);
+            }
+        }
 
     //  Borrow a book
     @PostMapping("/{bookId}")

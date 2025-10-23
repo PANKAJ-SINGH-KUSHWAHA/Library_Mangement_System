@@ -24,10 +24,15 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
     // Optionally: find a record by user, book, and active status (useful for return logic)
     Optional<BorrowRecord> findByUserAndBookAndStatus(User user, Book book, BorrowStatus status);
 
-    // (Optional) Get all currently borrowed (active) records — could help librarian/admin view
+    // Get borrow records by status (e.g., BORROWED)
     @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.status = :status")
     List<BorrowRecord> findByStatus(@Param("status") BorrowStatus status);
     
+    // Fetch all borrow records with user and book details
     @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user")
     List<BorrowRecord> findAllWithDetails();
+
+    // Get all borrow records for a specific book
+    @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.book = :book")
+    List<BorrowRecord> findByBook(@Param("book") Book book);
 }

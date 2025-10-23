@@ -1,18 +1,19 @@
-import { Routes, Route } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import Books from "./pages/Books";
-import ManageBooks from "./pages/ManageBooks";
-import ManageBookForm from "./pages/ManageBookForm";
-import VerifyEmail from "./pages/VerifyEmail";
-import PasswordResetRequest from "./pages/PasswordResetRequest";
-import PasswordResetConfirm from "./pages/PasswordResetConfirm";
 import PrivateRoute from "./components/PrivateRoute";
 import Settings from "./components/Settings";
-import UserManagement from "./pages/UserManagement";
+import Books from "./pages/Books";
+import BorrowRecords from "./pages/BorrowRecords";
+import Dashboard from "./pages/Dashboard";
+import Login from "./pages/Login";
+import ManageBookForm from "./pages/ManageBookForm";
+import ManageBooks from "./pages/ManageBooks";
 import MyBorrowedBooks from "./pages/MyBorrowedBooks";
+import PasswordResetConfirm from "./pages/PasswordResetConfirm";
+import PasswordResetRequest from "./pages/PasswordResetRequest";
+import Register from "./pages/Register";
+import UserManagement from "./pages/UserManagement";
+import VerifyEmail from "./pages/VerifyEmail";
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/manage-books/edit/:id" element={<PrivateRoute><ManageBookForm /></PrivateRoute>} />
         <Route path="/users" element={<PrivateRoute><UserManagement /></PrivateRoute>} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/borrow-records" element={<PrivateRoute><BorrowRecords /></PrivateRoute>} />
       </Routes>
     </>
   );

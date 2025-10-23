@@ -1,7 +1,7 @@
 // BorrowRecordsTable.jsx
+import { AlertCircle, BookOpen, CheckCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../api/apiClient";
-import { BookOpen, AlertCircle, CheckCircle } from "lucide-react";
 
 export function BorrowRecordsTable() {
   const [records, setRecords] = useState([]);
@@ -10,7 +10,6 @@ export function BorrowRecordsTable() {
   const fetchRecords = async () => {
     try {
       const { data } = await api.get("/borrow/all");
-      console.log("Fetched records:", data);
       setRecords(data);
     } catch (err) {
       console.error("Error fetching borrow records:", err);
@@ -50,6 +49,7 @@ export function BorrowRecordsTable() {
           <tr>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">User Email</th>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Book</th>
+            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Borrow Date</th>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Due Date</th>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Return Date</th>
             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
@@ -59,7 +59,7 @@ export function BorrowRecordsTable() {
         <tbody className="divide-y divide-gray-100">
           {records.length === 0 ? (
             <tr>
-              <td colSpan="6" className="px-6 py-12 text-center">
+              <td colSpan="7" className="px-6 py-12 text-center">
                 <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500">No borrow records found</p>
               </td>
@@ -69,6 +69,14 @@ export function BorrowRecordsTable() {
               <tr key={record.id} className="hover:bg-gray-50 transition">
                 <td className="px-6 py-4 text-sm text-gray-600">{record.userEmail}</td>
                 <td className="px-6 py-4 text-sm font-medium text-gray-800">{record.bookTitle}</td>
+                <td className="px-6 py-4 text-sm text-gray-700">
+                  {(() => {
+                    const loanDays = 7;
+                    if (record.borrowDate) return new Date(record.borrowDate).toLocaleDateString();
+                    if (record.dueDate) return new Date(new Date(record.dueDate).getTime() - loanDays * 24 * 60 * 60 * 1000).toLocaleDateString();
+                    return "-";
+                  })()}
+                </td>
                 <td className="px-6 py-4 text-sm text-gray-700">
                   {record.dueDate ? new Date(record.dueDate).toLocaleDateString() : "-"}
                 </td>
