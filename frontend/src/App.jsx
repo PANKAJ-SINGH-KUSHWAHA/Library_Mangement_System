@@ -20,7 +20,8 @@ export default function App() {
     <>
       <Navbar />
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        {/* Protect root dashboard route so unauthenticated users are redirected to /login */}
+        <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify" element={<VerifyEmail />} />
