@@ -33,7 +33,6 @@ const Login = () => {
 
       const role = payload.role;
       if (role === "ADMIN") navigate("/");
-      else if (role === "LIBRARIAN") navigate("/librarian");
       else navigate("/dashboard");
     } catch (err) {
       if (err.response && err.response.status === 401) {

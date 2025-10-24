@@ -1,5 +1,6 @@
 package com.pankaj.backend.config;
 
+import java.util.Date;
 import java.util.UUID;
 
 import org.springframework.boot.CommandLineRunner;
@@ -46,6 +47,7 @@ public class DataInitializer implements CommandLineRunner {
                     .lastName("Admin")
                     .role(adminRole)
                     .enabled(false) // must verify email
+                    .joinDate(new Date())
                     .verificationCode(verificationCode)
                     .build();
 
@@ -61,5 +63,34 @@ public class DataInitializer implements CommandLineRunner {
 
             System.out.println("✅ Default admin created. Verification email sent to " + adminEmail);
         }
+
+    String librarianEmail = "kushwahapankaj793@gmail.com";
+    if (userRepository.findByEmail(librarianEmail).isEmpty()) {
+        Role librarianRole = roleRepository.findByName("LIBRARIAN").orElseThrow();
+        String verificationCode = UUID.randomUUID().toString();
+
+        User librarian = User.builder()
+            .email(librarianEmail)
+            .password(passwordEncoder.encode("librarian123"))
+            .firstName("Manager")
+            .lastName("Librarian")
+            .role(librarianRole)
+            .enabled(false)
+            .joinDate(new Date())
+            .verificationCode(verificationCode)
+            .build();
+
+        userRepository.save(librarian);
+
+        // Send verification email
+        String verificationLink = "http://localhost:8081/api/auth/verify?code=" + verificationCode;
+        emailService.sendEmail(
+            librarianEmail,
+            "Verify your Librarian account",
+            "Click <a href='" + verificationLink + "'>here</a> to verify your email."
+        );
+
+        System.out.println("✅ Default Librarian created. Verification email sent to " + librarianEmail);
+    }
     }
 }

@@ -1,6 +1,7 @@
 package com.pankaj.backend.controller;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
 
@@ -58,6 +59,7 @@ public class AuthController {
                 .lastName(request.getLastName())
                 .role(memberRole)
                 .enabled(false)
+                .joinDate(new Date())
                 .verificationCode(UUID.randomUUID().toString())
                 .build();
 
@@ -88,7 +90,10 @@ public class AuthController {
         }
 
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        user.setActive(true);
+        userRepository.save(user);
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().getName());
+
         AuthResponse response = new AuthResponse(token, user.getRole().getName(),
                 user.getFirstName(), user.getEmail());
         return ResponseEntity.ok(response);
@@ -177,5 +182,18 @@ public class AuthController {
         userRepository.save(user);
         return ResponseEntity.ok("Password changed successfully!");
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(@RequestBody Map<String, String> payload) {
+    String email = payload.get("email");
+
+    User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+    user.setActive(false);
+    userRepository.save(user);
+
+    return ResponseEntity.ok(Map.of("message", "User logged out successfully"));
+}
 
 }

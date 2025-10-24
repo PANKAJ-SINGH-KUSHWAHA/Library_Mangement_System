@@ -49,7 +49,7 @@ export default function Dashboard() {
       icon: Users,
       link: "/users",
       color: "from-orange-500 to-red-500",
-      show: role === "ADMIN"
+      show: role === "ADMIN" || role === "LIBRARIAN"
     },
     {
       title: "Analytics",

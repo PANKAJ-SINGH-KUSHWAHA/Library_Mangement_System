@@ -52,12 +52,13 @@ const Navbar = () => {
     setShowLogoutConfirm(true);
   };
 
-  const confirmLogout = () => {
-    logout();
+  const confirmLogout = async () => {
+    await logout();
     showNotification("Successfully logged out", "success");
     setShowLogoutConfirm(false);
     navigate("/login");
   };
+
 
   return (
     <nav className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 shadow-lg sticky top-0 z-50">

@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getBook, addBook, updateBook } from "../api/books";
-import { BookOpen, Save, X, Image, User, Building, Package, CheckCircle } from "lucide-react";
+import { BookOpen, Save, X, Image, User, Building, Package, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function ManageBookForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [notification, setNotification] = useState(null);
 
   const [book, setBook] = useState({
     title: "",
@@ -17,6 +18,17 @@ export default function ManageBookForm() {
     availableCopies: 0,
     imageUrl: "",
   });
+
+  // Show notification helper with auto-dismiss
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  // Manually close notification
+  const closeNotification = () => {
+    setNotification(null);
+  };
 
   useEffect(() => {
     if (id) {
@@ -28,7 +40,10 @@ export default function ManageBookForm() {
             imageUrl: data.imageUrl || "",
           })
         )
-        .catch((err) => console.error(err))
+        .catch((err) => {
+          console.error(err);
+          showNotification("Error loading book details", "error");
+        })
         .finally(() => setLoading(false));
     }
   }, [id]);
@@ -49,14 +64,14 @@ export default function ManageBookForm() {
     try {
       if (id) {
         await updateBook(id, book);
-        alert("Book updated successfully!");
+        showNotification("Book updated successfully!", "success");
       } else {
         await addBook(book);
-        alert("Book added successfully!");
+        showNotification("Book added successfully!", "success");
       }
-      navigate("/manage-books");
+      setTimeout(() => navigate("/manage-books"), 1000);
     } catch (err) {
-      alert(err.response?.data || "Error saving book");
+      showNotification(err.response?.data || "Error saving book", "error");
     } finally {
       setLoading(false);
     }
@@ -75,6 +90,119 @@ export default function ManageBookForm() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
+      {/* Premium Notification System */}
+      <style>{`
+        @keyframes slideInBounce {
+          0% {
+            transform: translateX(400px) scale(0.8);
+            opacity: 0;
+          }
+          60% {
+            transform: translateX(-15px) scale(1.02);
+            opacity: 1;
+          }
+          100% {
+            transform: translateX(0) scale(1);
+            opacity: 1;
+          }
+        }
+        @keyframes progressShrink {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+        .notification-enter {
+          animation: slideInBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+      `}</style>
+      
+      {notification && (
+        <div className="fixed top-6 right-6 z-50 notification-enter">
+          <div
+            className={`relative w-96 rounded-2xl shadow-2xl backdrop-blur-sm overflow-hidden ${
+              notification.type === 'success' 
+                ? 'bg-white border-l-4 border-green-500' 
+                : 'bg-white border-l-4 border-red-500'
+            }`}
+            style={{
+              boxShadow: notification.type === 'success' 
+                ? '0 20px 25px -5px rgba(34, 197, 94, 0.2), 0 10px 10px -5px rgba(34, 197, 94, 0.1)'
+                : '0 20px 25px -5px rgba(239, 68, 68, 0.2), 0 10px 10px -5px rgba(239, 68, 68, 0.1)'
+            }}
+          >
+            {/* Animated Background Gradient */}
+            <div 
+              className={`absolute inset-0 opacity-5 ${
+                notification.type === 'success' 
+                  ? 'bg-gradient-to-br from-green-400 via-emerald-400 to-teal-400' 
+                  : 'bg-gradient-to-br from-red-400 via-rose-400 to-pink-400'
+              }`}
+              style={{ animation: 'pulse 3s ease-in-out infinite' }}
+            />
+            
+            <div className="relative p-5 flex items-start gap-4">
+              {/* Icon with Animation */}
+              <div className={`flex-shrink-0 rounded-full p-2 ${
+                notification.type === 'success' 
+                  ? 'bg-green-100' 
+                  : 'bg-red-100'
+              }`}>
+                {notification.type === 'success' ? (
+                  <CheckCircle className="w-7 h-7 text-green-600" strokeWidth={2.5} />
+                ) : (
+                  <AlertCircle className="w-7 h-7 text-red-600" strokeWidth={2.5} />
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <h4 className={`text-base font-bold mb-1 ${
+                  notification.type === 'success' ? 'text-green-900' : 'text-red-900'
+                }`}>
+                  {notification.type === 'success' ? '✓ Success' : '✕ Error'}
+                </h4>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {notification.message}
+                </p>
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={closeNotification}
+                className={`flex-shrink-0 rounded-full p-1.5 transition-all duration-200 ${
+                  notification.type === 'success' 
+                    ? 'hover:bg-green-100 text-green-600 hover:rotate-90' 
+                    : 'hover:bg-red-100 text-red-600 hover:rotate-90'
+                }`}
+                aria-label="Close notification"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Enhanced Progress Bar */}
+            <div className="relative h-1.5 bg-gray-100">
+              <div
+                className={`absolute inset-y-0 left-0 ${
+                  notification.type === 'success' 
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
+                    : 'bg-gradient-to-r from-red-500 to-rose-500'
+                }`}
+                style={{
+                  animation: 'progressShrink 4s linear forwards',
+                  boxShadow: notification.type === 'success'
+                    ? '0 0 10px rgba(34, 197, 94, 0.5)'
+                    : '0 0 10px rgba(239, 68, 68, 0.5)'
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">

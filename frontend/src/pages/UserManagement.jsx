@@ -1,4 +1,4 @@
-import { BookOpen, Trash2, Users } from "lucide-react";
+import { BookOpen, Trash2, Users, CheckCircle, AlertCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../api/apiClient";
 
@@ -7,10 +7,15 @@ export default function UserManagement() {
   const [borrowRecords, setBorrowRecords] = useState([]);
   const [notification, setNotification] = useState(null);
 
-  // Show notification helper
+  // Show notification helper with auto-dismiss
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  // Manually close notification
+  const closeNotification = () => {
+    setNotification(null);
   };
 
   const fetchUsers = async () => {
@@ -18,7 +23,7 @@ export default function UserManagement() {
       const { data } = await api.get("/admin/users");
       setUsers(data);
     } catch (err) {
-      alert(err.response?.data || "Error fetching users");
+      showNotification(err.response?.data || "Error fetching users", "error");
     }
   };
 
@@ -26,9 +31,9 @@ export default function UserManagement() {
     try {
       await api.delete(`/admin/users/member/${id}`);
       fetchUsers();
-      alert("Member removed!");
+      showNotification("Member removed successfully!", "success");
     } catch (err) {
-      alert(err.response?.data || "Error removing member");
+      showNotification(err.response?.data || "Error removing member", "error");
     }
   };
 
@@ -36,8 +41,8 @@ export default function UserManagement() {
     try {
       await api.put(`/borrow/return/${recordId}`);
       showNotification("Book has been successfully marked as returned!", "success");
-      await fetchBorrowRecords(); // Refresh the borrow records
-      await fetchUsers(); // Refresh user stats
+      await fetchBorrowRecords();
+      await fetchUsers();
     } catch (err) {
       showNotification(err.response?.data || "Error marking book as returned", "error");
     }
@@ -62,19 +67,116 @@ export default function UserManagement() {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Notification */}
+      {/* Premium Notification System */}
+      <style>{`
+        @keyframes slideInBounce {
+          0% {
+            transform: translateX(400px) scale(0.8);
+            opacity: 0;
+          }
+          60% {
+            transform: translateX(-15px) scale(1.02);
+            opacity: 1;
+          }
+          100% {
+            transform: translateX(0) scale(1);
+            opacity: 1;
+          }
+        }
+        @keyframes progressShrink {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+        .notification-enter {
+          animation: slideInBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+      `}</style>
+      
       {notification && (
-        <div
-          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
-            notification.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          } flex items-center gap-2`}
-        >
-          {notification.type === 'success' ? (
-            <CheckCircle className="w-5 h-5" />
-          ) : (
-            <AlertCircle className="w-5 h-5" />
-          )}
-          <p className="text-sm font-medium">{notification.message}</p>
+        <div className="fixed top-6 right-6 z-50 notification-enter">
+          <div
+            className={`relative w-96 rounded-2xl shadow-2xl backdrop-blur-sm overflow-hidden ${
+              notification.type === 'success' 
+                ? 'bg-white border-l-4 border-green-500' 
+                : 'bg-white border-l-4 border-red-500'
+            }`}
+            style={{
+              boxShadow: notification.type === 'success' 
+                ? '0 20px 25px -5px rgba(34, 197, 94, 0.2), 0 10px 10px -5px rgba(34, 197, 94, 0.1)'
+                : '0 20px 25px -5px rgba(239, 68, 68, 0.2), 0 10px 10px -5px rgba(239, 68, 68, 0.1)'
+            }}
+          >
+            {/* Animated Background Gradient */}
+            <div 
+              className={`absolute inset-0 opacity-5 ${
+                notification.type === 'success' 
+                  ? 'bg-gradient-to-br from-green-400 via-emerald-400 to-teal-400' 
+                  : 'bg-gradient-to-br from-red-400 via-rose-400 to-pink-400'
+              }`}
+              style={{ animation: 'pulse 3s ease-in-out infinite' }}
+            />
+            
+            <div className="relative p-5 flex items-start gap-4">
+              {/* Icon with Animation */}
+              <div className={`flex-shrink-0 rounded-full p-2 ${
+                notification.type === 'success' 
+                  ? 'bg-green-100' 
+                  : 'bg-red-100'
+              }`}>
+                {notification.type === 'success' ? (
+                  <CheckCircle className="w-7 h-7 text-green-600" strokeWidth={2.5} />
+                ) : (
+                  <AlertCircle className="w-7 h-7 text-red-600" strokeWidth={2.5} />
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <h4 className={`text-base font-bold mb-1 ${
+                  notification.type === 'success' ? 'text-green-900' : 'text-red-900'
+                }`}>
+                  {notification.type === 'success' ? '✓ Success' : '✕ Error'}
+                </h4>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {notification.message}
+                </p>
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={closeNotification}
+                className={`flex-shrink-0 rounded-full p-1.5 transition-all duration-200 ${
+                  notification.type === 'success' 
+                    ? 'hover:bg-green-100 text-green-600 hover:rotate-90' 
+                    : 'hover:bg-red-100 text-red-600 hover:rotate-90'
+                }`}
+                aria-label="Close notification"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Enhanced Progress Bar */}
+            <div className="relative h-1.5 bg-gray-100">
+              <div
+                className={`absolute inset-y-0 left-0 ${
+                  notification.type === 'success' 
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
+                    : 'bg-gradient-to-r from-red-500 to-rose-500'
+                }`}
+                style={{
+                  animation: 'progressShrink 4s linear forwards',
+                  boxShadow: notification.type === 'success'
+                    ? '0 0 10px rgba(34, 197, 94, 0.5)'
+                    : '0 0 10px rgba(239, 68, 68, 0.5)'
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
       

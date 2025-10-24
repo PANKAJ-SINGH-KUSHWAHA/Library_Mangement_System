@@ -39,7 +39,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                                 .requestMatchers("/api/auth/**").permitAll()
                                 .requestMatchers("/api/books/**").hasAnyAuthority("ADMIN", "LIBRARIAN", "MEMBER")
-                                .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+                                .requestMatchers("/api/admin/**").hasAnyAuthority("ADMIN","LIBRARIAN")
                                 .requestMatchers("/api/borrow/all").hasAnyAuthority("ADMIN", "LIBRARIAN")
                                 .requestMatchers("/api/borrow/**").hasAnyAuthority("ADMIN", "LIBRARIAN", "MEMBER")
                                 .anyRequest().authenticated()

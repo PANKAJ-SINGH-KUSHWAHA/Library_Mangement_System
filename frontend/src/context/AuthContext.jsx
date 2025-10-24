@@ -41,12 +41,31 @@ export const AuthProvider = ({ children }) => {
     if (storedUser.role) localStorage.setItem("role", storedUser.role);
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
+  const logout = async () => {
+    try {
+      const storedUser = user || JSON.parse(localStorage.getItem("user"));
+
+      if (storedUser?.email) {
+        await fetch("http://localhost:8081/api/auth/logout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ email: storedUser.email }),
+        });
+      }
+    } catch (error) {
+      console.error("Logout API error:", error);
+    } finally {
+      // Always clear local state
+      setUser(null);
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+    }
   };
+
 
   const isAuthenticated = () => !!localStorage.getItem("token") || !!user;
 

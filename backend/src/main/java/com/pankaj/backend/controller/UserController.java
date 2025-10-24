@@ -33,14 +33,14 @@ public class UserController {
 
     // Get all users
     @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN')")
     public ResponseEntity<List<User>> getAllUsers() {
         return ResponseEntity.ok(userRepository.findAll());
     }
 
     // Remove a member
     @DeleteMapping("/member/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN')")
     public ResponseEntity<?> removeMember(@PathVariable String id) {
         return userRepository.findById(id)
                 .map(user -> {
@@ -56,7 +56,7 @@ public class UserController {
 
     // Admin marks a borrowed book as returned
     @PutMapping("/return/{recordId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN')")
     public ResponseEntity<?> markReturn(@PathVariable Long recordId) {
         BorrowRecord record = borrowRecordRepository.findById(recordId)
                 .orElseThrow(() -> new RuntimeException("Borrow record not found"));
