@@ -1,8 +1,8 @@
 import { AlertCircle, BookOpen, CheckCircle, CheckCircle2, Edit, History, Package, Plus, Search, Trash2, X, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { deleteBook as deleteBookAPI, getBooks } from "../api/books";
-import { BorrowRecordsTable } from "../components/BorrowRecordsTable";
+
 
 // Add animation keyframes
 const style = document.createElement('style');
@@ -32,6 +32,9 @@ export default function ManageBooks() {
   const [notification, setNotification] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ show: false, bookId: null, bookTitle: '' });
   const navigate = useNavigate();
+  
+
+
 
   // Show notification helper
   const showNotification = (message, type = 'success') => {
@@ -45,6 +48,7 @@ export default function ManageBooks() {
       setTimeout(() => setNotification(null), 5000);
     }
   };
+
 
   const fetchBooks = async () => {
     setLoading(true);
@@ -188,27 +192,44 @@ export default function ManageBooks() {
 
       <div className="p-6 max-w-screen-2xl mx-auto">
         {/* Header Section */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
-                  <BookOpen className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold text-gray-900 tracking-tight">Library Inventory</h1>
-                  <p className="text-gray-600 mt-1">Manage your book collection and track availability</p>
-                </div>
+        <div className="mb-8 bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5">
+            
+            {/* Left Section: Icon + Title */}
+            <div className="flex items-center gap-4">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-2xl shadow-xl transform hover:scale-105 transition-transform duration-300">
+                <BookOpen className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">Library Inventory</h1>
+                <p className="text-gray-600 mt-1 text-lg">Manage your book collection and track availability</p>
               </div>
             </div>
-            <button
-              onClick={() => navigate("/manage-books/add")}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3.5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold transform hover:scale-105"
-            >
-              <Plus className="w-5 h-5" />
-              Add New Book
-            </button>
+
+            {/* Right Section: Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              
+              {/* Borrow History Button */}
+              <button
+                onClick={() => navigate("/borrow-records")}
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-6 py-3.5 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 font-semibold transform hover:-translate-y-1 hover:scale-105"
+              >
+                <History className="w-5 h-5" />
+                View All Borrow History
+              </button>
+
+              {/* Add Book Button */}
+              <button
+                onClick={() => navigate("/manage-books/add")}
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3.5 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 font-semibold transform hover:-translate-y-1 hover:scale-105"
+              >
+                <Plus className="w-5 h-5" />
+                Add New Book
+              </button>
+              
+            </div>
           </div>
+
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
@@ -442,25 +463,7 @@ export default function ManageBooks() {
           </div>
         )}
 
-        {/* Borrow Records Section */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-6 border-b border-orange-200">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-3 rounded-xl shadow-lg">
-                <History className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Borrow History</h2>
-                <p className="text-sm text-gray-700 mt-1 font-medium">
-                  Track all borrowing and return activity across books
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Borrow Records Table */}
-          <BorrowRecordsTable />
-        </div>
+        
       </div>
     </div>
   );
