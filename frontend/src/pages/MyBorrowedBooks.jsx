@@ -15,6 +15,7 @@ export default function MyBorrowedBooks() {
     setError(null);
     try {
       const res = await api.get(`/borrow/${user.email}`);
+      console.log(res.data);
       setRecords(res.data);
     } catch (err) {
       console.error("Error fetching borrowed books:", err.response?.data || err.message);
@@ -97,11 +98,19 @@ export default function MyBorrowedBooks() {
                 <div className="flex flex-col h-full">
                   <div className="mb-4">
                     <h3 className="text-xl font-bold text-gray-900 mb-2">{rec.bookTitle}</h3>
+                    <div className="flex justify-between items-start">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Calendar className="w-4 h-4" />
                       <span className="text-sm">
                         Due: {rec.dueDate ? new Date(rec.dueDate).toLocaleDateString() : 'Not set'}
                       </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Calendar className="w-4 h-4" />
+                      <span className="text-sm">
+                        Return Date: {rec.returnDate ? new Date(rec.returnDate).toLocaleDateString() : 'Not returned'}
+                      </span>
+                    </div>
                     </div>
                   </div>
                   

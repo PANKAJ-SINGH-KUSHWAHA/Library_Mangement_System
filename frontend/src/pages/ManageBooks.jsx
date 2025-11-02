@@ -89,7 +89,8 @@ export default function ManageBooks() {
   // Filter books
   const filteredBooks = books.filter(book => {
     const matchesSearch = book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         book.author.toLowerCase().includes(searchTerm.toLowerCase());
+                         book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         book.publisher.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === "all" ||
                          (filterStatus === "available" && book.availableCopies > 0) ||
                          (filterStatus === "unavailable" && book.availableCopies === 0);

@@ -1,23 +1,30 @@
 package com.pankaj.backend.controller;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pankaj.backend.entity.BorrowRecord;
 import com.pankaj.backend.entity.BorrowStatus;
+import com.pankaj.backend.entity.Role;
 import com.pankaj.backend.entity.User;
 import com.pankaj.backend.repository.BookRepository;
 import com.pankaj.backend.repository.BorrowRecordRepository;
+import com.pankaj.backend.repository.RoleRepository;
 import com.pankaj.backend.repository.UserRepository;
+import com.pankaj.backend.service.EmailService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,15 +37,18 @@ public class UserController {
     private final UserRepository userRepository;
     private final BorrowRecordRepository borrowRecordRepository;
     private final BookRepository bookRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
-    // Get all users
+    // ✅ Get all users
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN')")
     public ResponseEntity<List<User>> getAllUsers() {
         return ResponseEntity.ok(userRepository.findAll());
     }
 
-    // Remove a member
+    // ✅ Remove a member
     @DeleteMapping("/member/{id}")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN')")
     public ResponseEntity<?> removeMember(@PathVariable String id) {
@@ -53,8 +63,7 @@ public class UserController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-
-    // Admin marks a borrowed book as returned
+    // ✅ Mark borrowed book as returned
     @PutMapping("/return/{recordId}")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN')")
     public ResponseEntity<?> markReturn(@PathVariable Long recordId) {
@@ -67,13 +76,97 @@ public class UserController {
 
         record.setStatus(BorrowStatus.RETURNED);
 
-        // Update book availability
         var book = record.getBook();
         book.setAvailableCopies(book.getAvailableCopies() + 1);
         bookRepository.save(book);
-
         borrowRecordRepository.save(record);
 
         return ResponseEntity.ok("Book marked as returned successfully");
+    }
+
+    @PostMapping("/member")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN')")
+    public ResponseEntity<?> addMember(@RequestBody User newUser) {
+        // ✅ Check if email already exists
+        if (userRepository.findByEmail(newUser.getEmail()).isPresent()) {
+            return ResponseEntity.badRequest().body("Email is already registered");
+        }
+
+        // ✅ Fetch MEMBER role
+        Role memberRole = roleRepository.findByName("MEMBER")
+                .orElseThrow(() -> new RuntimeException("Role MEMBER not found"));
+
+        // ✅ Encode password
+        newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
+
+        // ✅ Set default user attributes
+        newUser.setRole(memberRole);
+        newUser.setEnabled(false);
+        newUser.setVerificationCode(UUID.randomUUID().toString());
+        newUser.setJoinDate(new java.util.Date());
+
+        userRepository.save(newUser);
+
+        // ✅ Send verification email
+        String verificationLink = "http://localhost:8081/api/auth/verify?code=" + newUser.getVerificationCode();
+        emailService.sendEmail(
+                newUser.getEmail(),
+                "Verify your Library account",
+                "Click <a href='" + verificationLink + "'>here</a> to verify your email."
+        );
+
+        return ResponseEntity.ok("Member added successfully. Please verify their email.");
+    }
+
+
+    // ✅ Update user (with email verification + bcrypt password)
+    @PutMapping("/user/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN')")
+    public ResponseEntity<?> updateUser(
+            @PathVariable String id,
+            @RequestBody User updatedUser
+    ) {
+        return userRepository.findById(id)
+                .map(existingUser -> {
+
+                    // ✅ 1. Check if email is changed and ensure it's unique
+                    if (!existingUser.getEmail().equals(updatedUser.getEmail())) {
+                        if (userRepository.findByEmail(updatedUser.getEmail()).isPresent()) {
+                            return ResponseEntity.badRequest().body("Email is already registered");
+                        }
+
+                        existingUser.setEmail(updatedUser.getEmail());
+                        existingUser.setEnabled(false); // disable until reverified
+                        existingUser.setVerificationCode(UUID.randomUUID().toString());
+
+                        // Send verification email again
+                        String verificationLink = "http://localhost:8081/api/auth/verify?code=" + existingUser.getVerificationCode();
+                        emailService.sendEmail(
+                                existingUser.getEmail(),
+                                "Verify your updated email",
+                                "Click <a href='" + verificationLink + "'>here</a> to verify your updated email."
+                        );
+                    }
+
+                    // ✅ 2. Update name fields
+                    existingUser.setFirstName(updatedUser.getFirstName());
+                    existingUser.setLastName(updatedUser.getLastName());
+
+                    // ✅ 3. Update password only if provided, encode with BCrypt
+                    if (updatedUser.getPassword() != null && !updatedUser.getPassword().isBlank()) {
+                        existingUser.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
+                    }
+
+                    // ✅ 4. Update role if provided
+                    if (updatedUser.getRole() != null && updatedUser.getRole().getId() != null) {
+                        Role role = roleRepository.findById(updatedUser.getRole().getId())
+                                .orElseThrow(() -> new RuntimeException("Invalid role ID"));
+                        existingUser.setRole(role);
+                    }
+
+                    userRepository.save(existingUser);
+                    return ResponseEntity.ok("User updated successfully");
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 }
