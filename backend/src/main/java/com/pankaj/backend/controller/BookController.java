@@ -33,6 +33,38 @@ public class BookController {
         return ResponseEntity.ok(books);
     }
 
+    // Search and filter endpoints
+    @GetMapping("/search")
+    public ResponseEntity<List<Book>> searchBooks(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String title,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String author,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String publisher,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String category,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean available
+    ) {
+        if (title != null) {
+            return ResponseEntity.ok(bookRepository.findByTitleContainingIgnoreCaseAndDeletedFalse(title));
+        }
+        if (author != null) {
+            return ResponseEntity.ok(bookRepository.findByAuthorContainingIgnoreCaseAndDeletedFalse(author));
+        }
+        if (publisher != null) {
+            return ResponseEntity.ok(bookRepository.findByPublisherContainingIgnoreCaseAndDeletedFalse(publisher));
+        }
+        if (category != null) {
+            return ResponseEntity.ok(bookRepository.findByCategories_NameAndDeletedFalse(category));
+        }
+        if (available != null) {
+            if (available) {
+                return ResponseEntity.ok(bookRepository.findByAvailableCopiesGreaterThanAndDeletedFalse(0));
+            } else {
+                return ResponseEntity.ok(bookRepository.findByAvailableCopiesEqualsAndDeletedFalse(0));
+            }
+        }
+        // If no filter, return all
+        return ResponseEntity.ok(bookRepository.findByDeletedFalse());
+    }
+
 
     @PostMapping("/add")
     @PreAuthorize("hasAnyAuthority('ADMIN','LIBRARIAN')")

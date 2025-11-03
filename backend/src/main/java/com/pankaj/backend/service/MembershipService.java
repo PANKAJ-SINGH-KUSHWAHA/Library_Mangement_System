@@ -18,6 +18,23 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class MembershipService {
+    // Search plans by partial name
+    public List<MembershipPlan> searchPlansByName(String name) {
+        return membershipRepository.findByNameContainingIgnoreCase(name);
+    }
+
+    // Member CRUD methods
+    public List<User> getAllMembers() {
+        return userRepository.findAll();
+    }
+
+    public User addOrUpdateMember(User user) {
+        return userRepository.save(user);
+    }
+
+    public void deleteMember(String id) {
+        userRepository.deleteById(id);
+    }
 
     private final MembershipRepository membershipRepository;
     private final UserRepository userRepository;

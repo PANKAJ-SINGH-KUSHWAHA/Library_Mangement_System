@@ -1,5 +1,5 @@
 // BorrowRecordsTable.jsx
-import { AlertCircle, BookOpen, CheckCircle, XCircle, ChevronUp, ChevronDown } from "lucide-react";
+import { AlertCircle, BookOpen, CheckCircle, ChevronDown, ChevronUp, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../api/apiClient";
 
@@ -40,8 +40,13 @@ export function BorrowRecordsTable() {
   // Mark as returned
   const markReturn = async (recordId) => {
     try {
-      await api.put(`/borrow/return/${recordId}`);
-      showNotification("Book marked as returned!", "success");
+      const { data } = await api.put(`/borrow/return/${recordId}`);
+      // If there is an overdue fine, show it to the user
+      if (data && data.overdueFine && Number(data.overdueFine) > 0) {
+        showNotification(`Book returned. Overdue fine: ${Number(data.overdueFine).toFixed(2)}`, "error");
+      } else {
+        showNotification("Book marked as returned!", "success");
+      }
       fetchRecords();
     } catch (err) {
       console.error("Error marking book returned:", err);
@@ -144,6 +149,7 @@ export function BorrowRecordsTable() {
                 { label: "Borrow Date", field: "borrowDate" },
                 { label: "Due Date", field: "dueDate" },
                 { label: "Return Date", field: "returnDate" },
+                { label: "Fine", field: "overdueFine" },
                 { label: "Status", field: "status" },
                 { label: "Actions" },
               ].map((col) => (
@@ -165,7 +171,7 @@ export function BorrowRecordsTable() {
           <tbody className="divide-y divide-gray-100">
             {filteredRecords.length === 0 ? (
               <tr>
-                <td colSpan="7" className="px-6 py-12 text-center">
+                <td colSpan="8" className="px-6 py-12 text-center">
                   <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500">No borrow records found</p>
                 </td>
@@ -187,6 +193,9 @@ export function BorrowRecordsTable() {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700">
                     {record.returnDate ? new Date(record.returnDate).toLocaleDateString() : "-"}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {record.overdueFine ? Number(record.overdueFine).toFixed(2) : "-"}
                   </td>
                   <td className="px-6 py-4">
                     <span

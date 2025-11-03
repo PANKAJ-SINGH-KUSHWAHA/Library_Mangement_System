@@ -13,4 +13,12 @@ public interface BookRepository extends JpaRepository<Book, String> {
     List<Book> findByDeletedFalse(); // only non-deleted books
 
     Optional<Book> findByIdAndDeletedFalse(String id); // fetch a book by id only if not deleted
+
+    // Search and filter methods
+    List<Book> findByTitleContainingIgnoreCaseAndDeletedFalse(String title);
+    List<Book> findByAuthorContainingIgnoreCaseAndDeletedFalse(String author);
+    List<Book> findByPublisherContainingIgnoreCaseAndDeletedFalse(String publisher);
+    List<Book> findByCategories_NameAndDeletedFalse(String category);
+    List<Book> findByAvailableCopiesGreaterThanAndDeletedFalse(int availableCopies);
+    List<Book> findByAvailableCopiesEqualsAndDeletedFalse(int availableCopies);
 }

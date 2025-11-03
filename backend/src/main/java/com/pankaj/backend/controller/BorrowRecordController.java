@@ -25,6 +25,7 @@ import com.pankaj.backend.entity.BorrowStatus;
 import com.pankaj.backend.entity.User;
 import com.pankaj.backend.repository.BookRepository;
 import com.pankaj.backend.repository.BorrowRecordRepository;
+import com.pankaj.backend.repository.MembershipSettingsRepository;
 import com.pankaj.backend.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class BorrowRecordController {
     private final BorrowRecordRepository borrowRecordRepository;
     private final BookRepository bookRepository;
     private final UserRepository userRepository;
+    private final MembershipSettingsRepository membershipSettingsRepository;
 
     // Get all borrowed books by user
     @GetMapping("/{email}")
@@ -61,7 +63,8 @@ public class BorrowRecordController {
                     record.getReturnDate() != null ? 
                         new java.sql.Date(record.getReturnDate().getTime()).toLocalDate() : 
                         null,
-                    record.getStatus().toString()
+                    record.getStatus().toString(),
+                    record.getOverdueFine()
                 ))
                 .collect(Collectors.toList());
             
@@ -91,7 +94,8 @@ public class BorrowRecordController {
                             null,
                         r.getReturnDate() != null ? 
                             new java.sql.Date(r.getReturnDate().getTime()).toLocalDate() : 
-                            null
+                            null,
+                        r.getOverdueFine()
                     ))
                     .collect(Collectors.toList());
                 return ResponseEntity.ok(dtos);
@@ -111,7 +115,17 @@ public class BorrowRecordController {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new RuntimeException("Book not found"));
 
-        //Check if already borrowed and not yet returned
+        // Enforce membership borrow limit
+        int currentBorrowed = borrowRecordRepository.countByUserAndStatus(user, BorrowStatus.BORROWED);
+        int limit = 2; // default
+        if (user.getPlan() != null && user.getPlan().getBorrowLimit() != null) {
+            limit = user.getPlan().getBorrowLimit();
+        }
+        if (currentBorrowed >= limit) {
+            return ResponseEntity.badRequest().body("Borrow limit reached for your membership plan.");
+        }
+
+        //Check if already borrowed and not yet returned for this same book
         boolean alreadyBorrowed = borrowRecordRepository.existsByUserAndBookAndStatus(user, book, BorrowStatus.BORROWED);
         if (alreadyBorrowed) {
             return ResponseEntity.badRequest().body("You have already borrowed this book. Please return it first.");
@@ -127,13 +141,22 @@ public class BorrowRecordController {
         bookRepository.save(book);
 
         // Create borrow record
-        BorrowRecord record = BorrowRecord.builder()
+        BorrowRecord.BorrowRecordBuilder builder = BorrowRecord.builder()
                 .user(user)
                 .book(book)
                 .borrowDate(new Date())
-                .dueDate(new Date(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000)) // 7 days later
-                .status(BorrowStatus.BORROWED)
-                .build();
+                .status(BorrowStatus.BORROWED);
+
+        // Set due date from membership plan if provided
+        if (user.getPlan() != null && user.getPlan().getMaxDurationDays() != null) {
+            long days = user.getPlan().getMaxDurationDays();
+            builder.dueDate(new Date(System.currentTimeMillis() + days * 24L * 60 * 60 * 1000));
+        } else {
+            // default 7 days
+            builder.dueDate(new Date(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000));
+        }
+
+        BorrowRecord record = builder.build();
 
         BorrowRecord savedRecord = borrowRecordRepository.save(record);
 
@@ -156,7 +179,8 @@ public class BorrowRecordController {
                         null,
                     r.getReturnDate() != null ? 
                         new java.sql.Date(r.getReturnDate().getTime()).toLocalDate() : 
-                        null
+                        null,
+                    r.getOverdueFine()
                 ))
                 .collect(Collectors.toList());
             return ResponseEntity.ok(dtos);
@@ -180,6 +204,22 @@ public class BorrowRecordController {
 
         record.setStatus(BorrowStatus.RETURNED);
         record.setReturnDate(new Date());
+
+        // Penalty calculation using configurable fine per day
+        long overdueDays = 0;
+        if (record.getDueDate() != null && record.getReturnDate() != null) {
+            long diffMillis = record.getReturnDate().getTime() - record.getDueDate().getTime();
+            overdueDays = diffMillis / (1000 * 60 * 60 * 24);
+        }
+        java.math.BigDecimal finePerDay = membershipSettingsRepository.findById(1)
+                .map(s -> s.getFinePerDay() == null ? java.math.BigDecimal.ZERO : s.getFinePerDay())
+                .orElse(java.math.BigDecimal.ZERO);
+
+        if (overdueDays > 0) {
+            record.setOverdueFine(finePerDay.multiply(new java.math.BigDecimal(overdueDays)));
+        } else {
+            record.setOverdueFine(java.math.BigDecimal.ZERO);
+        }
 
         // Update book availability
         Book book = record.getBook();

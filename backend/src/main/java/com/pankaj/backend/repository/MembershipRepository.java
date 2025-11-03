@@ -10,5 +10,7 @@ import com.pankaj.backend.entity.MembershipPlan;
 @Repository
 public interface MembershipRepository extends JpaRepository<MembershipPlan, Integer> {
     Optional<MembershipPlan> findByName(String name);
+    // Search plans by partial name match
+    java.util.List<MembershipPlan> findByNameContainingIgnoreCase(String name);
 }
 

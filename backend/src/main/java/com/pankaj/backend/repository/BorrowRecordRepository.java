@@ -28,6 +28,9 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
     @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.status = :status")
     List<BorrowRecord> findByStatus(@Param("status") BorrowStatus status);
     
+    // Count active borrows for a user (useful to enforce plan limits)
+    int countByUserAndStatus(User user, BorrowStatus status);
+    
     // Fetch all borrow records with user and book details
     @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user")
     List<BorrowRecord> findAllWithDetails();
