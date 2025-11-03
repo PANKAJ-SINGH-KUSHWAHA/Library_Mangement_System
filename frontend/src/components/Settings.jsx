@@ -1,5 +1,6 @@
 import { AlertCircle, CheckCircle2, Key, Lock, Mail, Shield, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import api from "../api/apiClient";
 import { confirmPasswordReset, requestPasswordReset } from "../api/auth";
 import { useAuth } from "../context/AuthContext";
 
@@ -39,8 +40,10 @@ style.textContent = `
 document.head.appendChild(style);
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [finePerDay, setFinePerDay] = useState(0);
+  const [loadingSettings, setLoadingSettings] = useState(false);
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -52,6 +55,37 @@ export default function Settings() {
     setNotification({ message, type });
     if (type === 'success') {
       setTimeout(() => setNotification(null), 5000);
+    }
+  };
+
+  // Load membership settings if admin
+  useEffect(() => {
+    if (role !== 'ADMIN') return;
+    const load = async () => {
+      setLoadingSettings(true);
+      try {
+        const { data } = await api.get('/admin/memberships/settings');
+        setFinePerDay(data.finePerDay || 0);
+      } catch (err) {
+        console.error('Failed to load membership settings', err);
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+    load();
+  }, [role]);
+
+  const saveSettings = async () => {
+    setLoadingSettings(true);
+    try {
+      const payload = { id: 1, finePerDay: Number(finePerDay) };
+      const { data } = await api.put('/admin/memberships/settings', payload);
+      setFinePerDay(data.finePerDay || 0);
+      showNotification('Settings saved', 'success');
+    } catch (err) {
+      showNotification('Failed to save settings', 'error');
+    } finally {
+      setLoadingSettings(false);
     }
   };
 
@@ -184,6 +218,32 @@ export default function Settings() {
             </div>
           </div>
         </div>
+
+        {/* Membership / Library Settings (Admin only) */}
+        {role === 'ADMIN' && (
+          <div className="bg-white rounded-b-2xl shadow-sm p-6 border-x border-b border-gray-200 mt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Library Settings</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fine per overdue day (₹)</label>
+                <input
+                  type="number"
+                  value={finePerDay}
+                  onChange={(e) => setFinePerDay(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={saveSettings}
+                  disabled={loadingSettings}
+                  className={`py-3 px-4 rounded-xl text-white font-medium flex-1 ${loadingSettings ? 'bg-gray-400' : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700'}`}>
+                  Save Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Password Update Section */}
         <div className="bg-white rounded-b-2xl shadow-sm p-6 border-x border-b border-gray-200">

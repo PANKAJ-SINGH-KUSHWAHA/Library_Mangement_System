@@ -38,6 +38,8 @@ public class UserController {
     private final BorrowRecordRepository borrowRecordRepository;
     private final BookRepository bookRepository;
     private final RoleRepository roleRepository;
+    private final com.pankaj.backend.repository.MembershipRepository membershipRepository;
+    private final com.pankaj.backend.repository.MembershipSettingsRepository membershipSettingsRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
@@ -85,7 +87,26 @@ public class UserController {
             return ResponseEntity.badRequest().body("Book already returned");
         }
 
+        // Set return date and mark returned
+        record.setReturnDate(new java.util.Date());
         record.setStatus(BorrowStatus.RETURNED);
+
+        // Calculate overdue and fine
+        var due = record.getDueDate();
+        var returned = record.getReturnDate();
+        if (due != null && returned != null && returned.after(due)) {
+            long diff = returned.getTime() - due.getTime();
+            long days = java.util.concurrent.TimeUnit.DAYS.convert(diff, java.util.concurrent.TimeUnit.MILLISECONDS);
+            if (days < 1) days = 1;
+
+            // Fetch finePerDay from settings (singleton id = 1)
+            var settings = membershipSettingsRepository.findById(1).orElse(new com.pankaj.backend.entity.MembershipSettings(1, java.math.BigDecimal.ZERO));
+            var finePerDay = settings.getFinePerDay() == null ? java.math.BigDecimal.ZERO : settings.getFinePerDay();
+            var overdueFine = finePerDay.multiply(java.math.BigDecimal.valueOf(days));
+            record.setOverdueFine(overdueFine);
+        } else {
+            record.setOverdueFine(java.math.BigDecimal.ZERO);
+        }
 
         var book = record.getBook();
         book.setAvailableCopies(book.getAvailableCopies() + 1);
@@ -203,6 +224,19 @@ public class UserController {
                         Role role = roleRepository.findById(updatedUser.getRole().getId())
                                 .orElseThrow(() -> new RuntimeException("Invalid role ID"));
                         existingUser.setRole(role);
+                    }
+
+                    // contact & membership fields
+                    existingUser.setPhone(updatedUser.getPhone());
+                    existingUser.setAddress(updatedUser.getAddress());
+                    if (updatedUser.getJoinDate() != null) existingUser.setJoinDate(updatedUser.getJoinDate());
+                    existingUser.setMembershipExpiry(updatedUser.getMembershipExpiry());
+                    existingUser.setIsMember(updatedUser.getIsMember());
+
+                    if (updatedUser.getPlan() != null && updatedUser.getPlan().getId() != null) {
+                        var plan = membershipRepository.findById(updatedUser.getPlan().getId())
+                                .orElseThrow(() -> new RuntimeException("Invalid plan ID"));
+                        existingUser.setPlan(plan);
                     }
 
                     userRepository.save(existingUser);

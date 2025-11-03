@@ -12,6 +12,7 @@ import com.pankaj.backend.entity.User;
 import com.pankaj.backend.repository.RoleRepository;
 import com.pankaj.backend.repository.UserRepository;
 import com.pankaj.backend.service.EmailService;
+import com.pankaj.backend.service.MembershipService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +24,7 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final MembershipService membershipService;
 
     @Override
     public void run(String... args) {
@@ -62,6 +64,14 @@ public class DataInitializer implements CommandLineRunner {
             );
 
             System.out.println("✅ Default admin created. Verification email sent to " + adminEmail);
+        }
+
+        // Seed membership plans (Premium, Standard, Free)
+        try {
+            membershipService.seedDefaultPlans();
+            System.out.println("✅ Membership plans seeded (if not present)");
+        } catch (Exception e) {
+            System.err.println("Failed to seed membership plans: " + e.getMessage());
         }
 
     String librarianEmail = "kushwahapankaj793@gmail.com";

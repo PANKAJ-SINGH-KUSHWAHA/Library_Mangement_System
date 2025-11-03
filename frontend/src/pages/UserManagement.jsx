@@ -1,6 +1,7 @@
-import { BookOpen, Trash2, Users, CheckCircle, AlertCircle, X, Pencil, Loader2 } from "lucide-react";
+import { AlertCircle, BookOpen, CheckCircle, Loader2, Pencil, Trash2, Users, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../api/apiClient";
+import MembershipModal from "../components/MembershipModal";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -9,6 +10,9 @@ export default function UserManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showMembershipModal, setShowMembershipModal] = useState(false);
+  const [membershipUser, setMembershipUser] = useState(null);
+  const [plans, setPlans] = useState([]);
 
   // formData uses roleId numeric values: 2 = Librarian, 3 = Member
   const [formData, setFormData] = useState({
@@ -16,7 +20,13 @@ export default function UserManagement() {
     lastName: "",
     email: "",
     roleId: 3,
-    password: ""
+    password: "",
+    phone: "",
+    address: "",
+    joinDate: "",
+    membershipExpiry: "",
+    planId: null,
+    isMember: true
   });
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -53,6 +63,15 @@ export default function UserManagement() {
     else setFormData({ ...formData, [name]: value });
   };
 
+  const fetchPlans = async () => {
+    try {
+      const { data } = await api.get("/memberships/plans");
+      setPlans(data || []);
+    } catch (err) {
+      console.error("Failed to load plans", err);
+    }
+  };
+
   const fetchUsers = async () => {
     try {
       const { data } = await api.get("/admin/users");
@@ -74,6 +93,7 @@ export default function UserManagement() {
   useEffect(() => {
     fetchUsers();
     fetchBorrowRecords();
+    fetchPlans();
   }, []);
 
   const activeLoans = borrowRecords.filter((r) => r.status === "BORROWED").length;
@@ -132,6 +152,13 @@ export default function UserManagement() {
         email: formData.email,
         role: { id: formData.roleId || 3 },
       };
+      // include contact & membership when updating/creating
+      if (formData.phone) payload.phone = formData.phone;
+      if (formData.address) payload.address = formData.address;
+      if (formData.joinDate) payload.joinDate = formData.joinDate;
+      if (formData.membershipExpiry) payload.membershipExpiry = formData.membershipExpiry;
+      if (formData.isMember !== undefined) payload.isMember = formData.isMember;
+      if (formData.planId) payload.plan = { id: formData.planId };
       if (!editingUser) {
       // Creating new user — password required
       payload.password = formData.password;
@@ -201,7 +228,13 @@ export default function UserManagement() {
       lastName: user.lastName || "",
       email: user.email || "",
       roleId: getRoleId(user) || 3,
-      password: ""
+      password: "",
+      phone: user.phone || "",
+      address: user.address || "",
+      joinDate: user.joinDate ? new Date(user.joinDate).toISOString().slice(0,10) : "",
+      membershipExpiry: user.membershipExpiry ? new Date(user.membershipExpiry).toISOString().slice(0,10) : "",
+      planId: user.plan?.id || null,
+      isMember: user.isMember === undefined ? true : user.isMember
     });
     setShowForm(true);
   };
@@ -213,6 +246,7 @@ export default function UserManagement() {
   };
 
   return (
+    <>
     <div className="p-6 bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 min-h-screen">
       {notification && (
         <Notification notification={notification} closeNotification={closeNotification} />
@@ -296,6 +330,65 @@ export default function UserManagement() {
                 required={!editingUser}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
+            </div>
+
+            {/* Contact & Membership fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
+              <input
+                type="text"
+                name="phone"
+                placeholder="Phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+
+              <select
+                name="planId"
+                value={formData.planId || ""}
+                onChange={(e) => setFormData({ ...formData, planId: e.target.value ? Number(e.target.value) : null })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                <option value="">Select Plan (optional)</option>
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-3">
+              <input
+                type="date"
+                name="joinDate"
+                value={formData.joinDate}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+
+              <input
+                type="date"
+                name="membershipExpiry"
+                value={formData.membershipExpiry}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <div className="mt-3">
+              <textarea
+                name="address"
+                placeholder="Address"
+                value={formData.address}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 mt-3">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={!!formData.isMember} onChange={(e) => setFormData({ ...formData, isMember: e.target.checked })} />
+                <span className="text-sm text-gray-700">Is member</span>
+              </label>
             </div>
 
             <div className="flex gap-4 items-center pt-2">
@@ -486,6 +579,12 @@ export default function UserManagement() {
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Remove
                       </button>
+                      <button
+                        onClick={() => { setMembershipUser(u); setShowMembershipModal(true); }}
+                        className="inline-flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-md shadow-blue-500/30 transition-all transform hover:scale-105"
+                      >
+                        Manage Membership
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -526,6 +625,15 @@ export default function UserManagement() {
         </div>
       </div>
     </div>
+
+      {/* Membership modal */}
+      <MembershipModal
+        open={showMembershipModal}
+        onClose={() => { setShowMembershipModal(false); setMembershipUser(null); }}
+        user={membershipUser}
+        onAssigned={() => { fetchUsers(); }}
+      />
+    </>
   );
 }
 

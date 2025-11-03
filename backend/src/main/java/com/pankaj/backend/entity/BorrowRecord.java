@@ -1,5 +1,6 @@
 package com.pankaj.backend.entity;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -45,7 +46,11 @@ public class BorrowRecord {
     private Date returnDate;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private BorrowStatus status = BorrowStatus.BORROWED;
+
+    /** Calculated fine when returned (overdue) */
+    private BigDecimal overdueFine;
 
     @PrePersist
     public void setDueDateDefault() {
