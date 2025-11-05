@@ -378,7 +378,7 @@ export default function ManageBooks() {
                     <img
                       src={book.imageUrl}
                       alt={book.title}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      className="w-full h-full object-contain transition-transform duration-300 hover:scale-105"
                       onError={(e) => {
                         e.target.src = "";
                       }}
