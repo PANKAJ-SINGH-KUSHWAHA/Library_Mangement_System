@@ -2,6 +2,7 @@ import { AlertCircle, BookOpen, Calendar, CheckCircle, Clock, Library, RefreshCc
 import { useEffect, useState } from "react";
 import api from "../api/apiClient";
 import { useAuth } from "../context/AuthContext";
+import formatDate from "../utils/formatDate";
 
 export default function MyBorrowedBooks() {
   const { user } = useAuth();
@@ -102,13 +103,13 @@ export default function MyBorrowedBooks() {
                     <div className="flex items-center gap-2 text-gray-600">
                       <Calendar className="w-4 h-4" />
                       <span className="text-sm">
-                        Due: {rec.dueDate ? new Date(rec.dueDate).toLocaleDateString() : 'Not set'}
+                        Due: {rec.dueDate ? formatDate(rec.dueDate) : 'Not set'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-600">
                       <Calendar className="w-4 h-4" />
                       <span className="text-sm">
-                        Return Date: {rec.returnDate ? new Date(rec.returnDate).toLocaleDateString() : 'Not returned'}
+                        Return Date: {rec.returnDate ? formatDate(rec.returnDate) : 'Not returned'}
                       </span>
                     </div>
                     </div>

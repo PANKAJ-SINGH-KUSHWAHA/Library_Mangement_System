@@ -140,23 +140,16 @@ public class BorrowRecordController {
         book.setAvailableCopies(book.getAvailableCopies() - 1);
         bookRepository.save(book);
 
-        // Create borrow record
-        BorrowRecord.BorrowRecordBuilder builder = BorrowRecord.builder()
-                .user(user)
-                .book(book)
-                .borrowDate(new Date())
-                .status(BorrowStatus.BORROWED);
-
-        // Set due date from membership plan if provided
-        if (user.getPlan() != null && user.getPlan().getMaxDurationDays() != null) {
-            long days = user.getPlan().getMaxDurationDays();
-            builder.dueDate(new Date(System.currentTimeMillis() + days * 24L * 60 * 60 * 1000));
-        } else {
-            // default 7 days
-            builder.dueDate(new Date(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000));
-        }
-
-        BorrowRecord record = builder.build();
+        // Enforce borrowDate = now and dueDate = 7 days later (ignore membership plan duration)
+        Date borrowNow = new Date();
+        long sevenDaysMillis = 7L * 24 * 60 * 60 * 1000;
+        BorrowRecord record = BorrowRecord.builder()
+            .user(user)
+            .book(book)
+            .borrowDate(borrowNow)
+            .dueDate(new Date(borrowNow.getTime() + sevenDaysMillis))
+            .status(BorrowStatus.BORROWED)
+            .build();
 
         BorrowRecord savedRecord = borrowRecordRepository.save(record);
 

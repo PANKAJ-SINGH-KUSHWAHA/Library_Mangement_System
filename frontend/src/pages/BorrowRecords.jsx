@@ -1,7 +1,8 @@
+import { AlertCircle, ArrowLeft, BookOpen, Calendar, CheckCircle, ChevronDown, ChevronUp, Clock, History, Search, User, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, BookOpen, CheckCircle, History, Search, XCircle, ChevronUp, ChevronDown, ArrowLeft, Calendar, User, Clock } from "lucide-react";
 import api from "../api/apiClient";
+import formatDate from "../utils/formatDate";
 
 export default function BorrowRecords() {
   const [records, setRecords] = useState([]);
@@ -303,17 +304,17 @@ export default function BorrowRecords() {
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-900">{record.bookTitle}</td>
                       <td className="px-6 py-4 text-sm text-gray-700">
-                        {record.borrowDate
-                          ? new Date(record.borrowDate).toLocaleDateString()
-                          : record.dueDate
-                          ? new Date(new Date(record.dueDate).getTime() - loanDays * 24 * 60 * 60 * 1000).toLocaleDateString()
-                          : "-"}
+                          {record.borrowDate
+                            ? formatDate(record.borrowDate)
+                            : record.dueDate
+                            ? formatDate(new Date(new Date(record.dueDate).getTime() - loanDays * 24 * 60 * 60 * 1000))
+                            : "-"}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700">
-                        {record.dueDate ? new Date(record.dueDate).toLocaleDateString() : "-"}
+                        {record.dueDate ? formatDate(record.dueDate) : "-"}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700">
-                        {record.returnDate ? new Date(record.returnDate).toLocaleDateString() : "-"}
+                        {record.returnDate ? formatDate(record.returnDate) : "-"}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         {record.overdueFine ? (
@@ -345,7 +346,7 @@ export default function BorrowRecords() {
                         ) : (
                           <div className="text-xs text-gray-500">
                             <p className="font-medium text-gray-700">Completed</p>
-                            <p>{new Date(record.returnDate).toLocaleDateString()}</p>
+                            <p>{formatDate(record.returnDate)}</p>
                           </div>
                         )}
                       </td>
