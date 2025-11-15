@@ -13,6 +13,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class Fine {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -34,5 +35,12 @@ public class Fine {
     @Temporal(TemporalType.TIMESTAMP)
     private Date paidAt;
 
-    private String paidBy; // optional metadata (admin user)
+    private String paidBy;
+
+    
+    @Column(name = "fine_type", length = 20)
+    private String type;    // "OVERDUE" or "DAMAGE"
+
+    @Column(name = "description", length = 1000)
+    private String description;
 }

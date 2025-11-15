@@ -61,6 +61,14 @@ export default function Dashboard() {
       color: "from-purple-500 to-pink-500",
       show: role === "MEMBER"
     },
+     {
+    title: "My Fines",
+    description: "View & pay your fines",
+    icon: AlertCircle,
+    link: "/my-fines",
+    color: "from-red-500 to-pink-500",
+    show: role === "MEMBER"
+  },
     {
       title: "Manage Books",
       description: "Add, edit, or remove books from library",

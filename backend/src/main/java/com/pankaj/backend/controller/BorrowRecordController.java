@@ -61,6 +61,7 @@ public class BorrowRecordController {
     private static final int DEFAULT_LOAN_DAYS = 7;
     private static final int DEFAULT_BORROW_LIMIT = 2;
     private static final int LOW_STOCK_THRESHOLD = 3;
+    private static final BigDecimal DAMAGE_FEE = new BigDecimal("1000");
 
     // ---------------- RENEW ----------------
     @PutMapping("/renew/{recordId}")
@@ -145,7 +146,11 @@ public class BorrowRecordController {
     @PutMapping("/return/{recordId}")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'LIBRARIAN')")
     @Transactional
-    public ResponseEntity<?> returnBook(@PathVariable Long recordId) {
+    public ResponseEntity<?> returnBook(
+            @PathVariable Long recordId,
+            @RequestParam(name = "damaged", required = false, defaultValue = "false") boolean damaged,
+            @RequestParam(name = "damageNotes", required = false) String damageNotes) {
+
         BorrowRecord record = borrowRecordRepository.findById(recordId)
                 .orElseThrow(() -> new RuntimeException("Borrow record not found"));
 
@@ -164,19 +169,68 @@ public class BorrowRecordController {
         }
 
         BigDecimal totalFine = BigDecimal.ZERO;
+        // overdue fine
         if (overdueDays > 0) {
-            totalFine = FINE_PER_DAY.multiply(BigDecimal.valueOf(overdueDays));
-            record.setOverdueFine(totalFine);
+            BigDecimal overdue = FINE_PER_DAY.multiply(BigDecimal.valueOf(overdueDays));
+            totalFine = totalFine.add(overdue);
+            record.setOverdueFine(overdue);
 
-            Fine fine = Fine.builder()
+            Fine overdueFine = Fine.builder()
                     .borrowRecord(record)
-                    .amount(totalFine)
+                    .amount(overdue)
                     .paid(false)
                     .createdAt(new Date())
                     .build();
-            fineRepository.save(fine);
+            fineRepository.save(overdueFine);
         } else {
             record.setOverdueFine(BigDecimal.ZERO);
+        }
+
+        // damage fine (additional)
+        if (damaged) {
+            BigDecimal damageFine = DAMAGE_FEE;
+            totalFine = totalFine.add(damageFine);
+
+            Fine damage = Fine.builder()
+                    .borrowRecord(record)
+                    .amount(damageFine)
+                    .paid(false)
+                    .createdAt(new Date())
+                    .build();
+
+            // If your Fine entity already has a 'description' or 'reason' field, set it:
+            // damage.setDescription(damageNotes != null ? damageNotes : "Damaged book fine");
+
+            fineRepository.save(damage);
+
+            // Optionally mark book as damaged or decrement usable copies; here we leave copies unchanged
+            // Notify member and admins about damage fine
+            User member = record.getUser();
+            String subj = "Damaged Book — Fine Issued";
+            String body = String.format(
+                "Hello %s,\n\nDuring return of \"%s\" (record id: %d) the item was marked as DAMAGED.\nDamage fine: ₹%s\n%s\n\nPlease clear the payment at the library desk or via the payments page.",
+                member != null ? (member.getFirstName() + " " + member.getLastName()) : "Member",
+                record.getBook() != null ? record.getBook().getTitle() : "Unknown book",
+                record.getId(),
+                damageFine.toPlainString(),
+                (damageNotes != null ? "Notes: " + damageNotes : "")
+            );
+            try {
+                notificationService.createAndSendEmailNotification(member, subj, body);
+            } catch (Exception e) {
+                // swallow - service already logs
+            }
+
+            // notify admins/librarians
+            String adminBody = String.format(
+                "Member %s (%s) returned book \"%s\" marked as DAMAGED. Damage fine ₹%s. Notes: %s",
+                member != null ? (member.getEmail()) : "unknown",
+                member != null ? (String.valueOf(member.getId())) : "unknown",
+                record.getBook() != null ? record.getBook().getTitle() : "unknown",
+                damageFine.toPlainString(),
+                (damageNotes != null ? damageNotes : "-")
+            );
+            notificationService.notifyAdmins("Damaged book returned", adminBody);
         }
 
         // update book availability
@@ -184,42 +238,19 @@ public class BorrowRecordController {
         if (book != null) {
             book.setAvailableCopies(book.getAvailableCopies() + 1);
             bookRepository.save(book);
+
+            // low stock check (optional)
+            final int LOW_STOCK_THRESHOLD = 3;
+            // guard against null by treating null as 0
+            Integer available = book.getAvailableCopies();
+            if (available != null && available < LOW_STOCK_THRESHOLD) {
+                String subj = "Low stock alert — " + book.getTitle();
+                String body = "Available copies for \"" + book.getTitle() + "\" are low: " + available;
+                notificationService.notifyAdmins(subj, body);
+            }
         }
 
         BorrowRecord saved = borrowRecordRepository.save(record);
-
-        // send return confirmation (and fine info if any)
-        try {
-            if (saved.getUser() != null) {
-                String html = "<p>Hi " + safeName(saved.getUser()) + ",</p>"
-                        + "<p>We received your returned book <b>" + (saved.getBook() != null ? saved.getBook().getTitle() : "Book") + "</b> on " + saved.getReturnDate() + ".</p>";
-                if (saved.getOverdueFine() != null && saved.getOverdueFine().compareTo(BigDecimal.ZERO) > 0) {
-                    html += "<p>Overdue fine: <b>₹" + saved.getOverdueFine() + "</b>. Please pay at the library counter or via the portal.</p>";
-                } else {
-                    html += "<p>Thank you! No fine for this return.</p>";
-                }
-                notificationService.createAndSendEmailNotification(
-                        saved.getUser(),
-                        "Return Confirmation — " + (saved.getBook() != null ? saved.getBook().getTitle() : "Book"),
-                        html
-                );
-            }
-        } catch (Exception ex) {
-            logger.warn("Failed to send return notification: {}", ex.getMessage());
-        }
-
-        // low-stock alert for admins
-        try {
-            if (book != null &&  book.getAvailableCopies() < LOW_STOCK_THRESHOLD) {
-                String subj = "Low stock alert: " + book.getTitle();
-                String body = "<p>Only <b>" + book.getAvailableCopies() + "</b> copies left for <b>" + book.getTitle() + "</b>.</p>"
-                        + "<p>Please review procurement or replacements.</p>";
-                notificationService.notifyAdmins(subj, body);
-            }
-        } catch (Exception ex) {
-            logger.warn("Failed to send low-stock admin notification: {}", ex.getMessage());
-        }
-
         return ResponseEntity.ok(saved);
     }
 

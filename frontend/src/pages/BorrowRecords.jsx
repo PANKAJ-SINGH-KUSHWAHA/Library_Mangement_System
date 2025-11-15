@@ -18,6 +18,13 @@ export default function BorrowRecords() {
   const [renewingIds, setRenewingIds] = useState([]); // array of record ids being renewed
   const [returningIds, setReturningIds] = useState([]); // array of record ids being returned
 
+  // return modal state (damaged flow)
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [modalRecord, setModalRecord] = useState(null);
+  const [isDamaged, setIsDamaged] = useState(false);
+  const [damageFee, setDamageFee] = useState("");
+  const [damageNote, setDamageNote] = useState("");
+
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
@@ -54,9 +61,57 @@ export default function BorrowRecords() {
     fetchRecords();
   }, [bookId]);
 
+  // helper: add/remove returning id (keeps UI loader per-row)
+  const addReturning = (id) => setReturningIds(prev => Array.from(new Set([...prev, id])));
+  const removeReturning = (id) => setReturningIds(prev => prev.filter(i => i !== id));
+
+  // open modal for return (to allow damaged handling)
+  const openReturnModal = (record) => {
+    setModalRecord(record);
+    setIsDamaged(false);
+    setDamageFee("");
+    setDamageNote("");
+    setShowReturnModal(true);
+  };
+
+  const closeReturnModal = () => {
+    setShowReturnModal(false);
+    setModalRecord(null);
+    setIsDamaged(false);
+    setDamageFee("");
+    setDamageNote("");
+  };
+
+  // confirm return (called from modal)
+  const confirmReturn = async () => {
+    if (!modalRecord) return;
+    const recordId = modalRecord.id;
+    addReturning(recordId);
+
+    try {
+      let config = {};
+      if (isDamaged) {
+        // ensure numeric fee (backend accepts BigDecimal)
+        const parsed = parseFloat(damageFee || "0");
+        const safeFee = Number.isFinite(parsed) ? parsed : 0;
+        config = { params: { damaged: true, damageFee: safeFee, damageNote } };
+      }
+      await api.put(`/borrow/return/${recordId}`, null, config);
+      showNotification("Book marked as returned!", "success");
+      await fetchRecords();
+      closeReturnModal();
+    } catch (err) {
+      console.error("Error marking book returned:", err);
+      showNotification(err.response?.data || "Error marking book as returned", "error");
+    } finally {
+      removeReturning(recordId);
+    }
+  };
+
+  // direct mark return (keeps backward compatibility if you want direct action without modal)
+  // we'll use modal for admin flow, but keep function for other usages
   const markReturn = async (recordId) => {
-    // add to returningIds
-    setReturningIds((prev) => [...prev, recordId]);
+    addReturning(recordId);
     try {
       await api.put(`/borrow/return/${recordId}`);
       showNotification("Book marked as returned!", "success");
@@ -65,8 +120,7 @@ export default function BorrowRecords() {
       console.error("Error marking book returned:", err);
       showNotification(err.response?.data || "Error marking book as returned", "error");
     } finally {
-      // remove from returningIds
-      setReturningIds((prev) => prev.filter((id) => id !== recordId));
+      removeReturning(recordId);
     }
   };
 
@@ -139,11 +193,6 @@ export default function BorrowRecords() {
       </div>
     );
   }
-
-  // small inline spinner element used inside buttons
-  const InlineSpinner = ({ size = 4 }) => (
-    <div className={`w-${size} h-${size} border-2 border-t-transparent border-white rounded-full animate-spin`} />
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50 to-slate-50">
@@ -393,10 +442,9 @@ export default function BorrowRecords() {
                                     </>
                                   )}
                                 </button>
-
-                                {/* Mark Returned */}
+                                {/* Mark Returned -> open modal */}
                                 <button
-                                  onClick={() => markReturn(record.id)}
+                                  onClick={() => openReturnModal(record)}
                                   disabled={isReturning || isRenewing}
                                   className={`inline-flex items-center gap-2 ${isReturning ? "opacity-80 cursor-wait" : ""} bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md`}
                                 >
@@ -446,6 +494,62 @@ export default function BorrowRecords() {
           </div>
         )}
       </div>
+
+      {/* ------------------ Return Modal ------------------ */}
+      {showReturnModal && modalRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={closeReturnModal} />
+          <div className="relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-xl p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold">Return Book — {modalRecord.bookTitle}</h3>
+                <p className="text-sm text-gray-500">Member: {modalRecord.userEmail}</p>
+              </div>
+              <button className="text-gray-400 hover:text-gray-600" onClick={closeReturnModal}><XCircle /></button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <input id="damaged" type="checkbox" className="h-4 w-4" checked={isDamaged} onChange={(e) => setIsDamaged(e.target.checked)} />
+                <label htmlFor="damaged" className="text-sm font-medium">Mark as damaged</label>
+              </div>
+
+              {isDamaged && (
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-600">Damage Fee (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={damageFee}
+                    onChange={(e) => setDamageFee(e.target.value)}
+                    placeholder="Enter damage fee"
+                    className="w-full border px-3 py-2 rounded-lg"
+                  />
+                  <label className="text-sm text-gray-600">Damage Note (optional)</label>
+                  <textarea
+                    rows={3}
+                    value={damageNote}
+                    onChange={(e) => setDamageNote(e.target.value)}
+                    className="w-full border px-3 py-2 rounded-lg"
+                    placeholder="Describe damage (pages torn, water damage, etc.)"
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 mt-4">
+                <button onClick={closeReturnModal} className="px-4 py-2 rounded-lg border">Cancel</button>
+                <button
+                  onClick={confirmReturn}
+                  className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold"
+                >
+                  Confirm Return
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
