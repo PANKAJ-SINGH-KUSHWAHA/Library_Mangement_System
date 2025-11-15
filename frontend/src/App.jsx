@@ -14,6 +14,8 @@ import PasswordResetRequest from "./pages/PasswordResetRequest";
 import Register from "./pages/Register";
 import UserManagement from "./pages/UserManagement";
 import VerifyEmail from "./pages/VerifyEmail";
+import AdminFines from "./pages/AdminFines";
+
 
 export default function App() {
   return (
@@ -37,6 +39,7 @@ export default function App() {
         <Route path="/users" element={<PrivateRoute><UserManagement /></PrivateRoute>} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/borrow-records" element={<PrivateRoute><BorrowRecords /></PrivateRoute>} />
+        <Route path="/admin/fines" element={<PrivateRoute roles={['ADMIN','LIBRARIAN']}><AdminFines /></PrivateRoute>}/>
       </Routes>
     </>
   );

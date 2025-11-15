@@ -1,22 +1,48 @@
-import { useContext } from "react";
+// src/pages/Dashboard.jsx
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
-import { 
-  BookOpen, 
-  Library, 
-  Users, 
-  TrendingUp, 
-  Clock, 
+import {
+  BookOpen,
+  Library,
+  Users,
+  TrendingUp,
+  Clock,
   Star,
   ArrowRight,
   BookMarked,
   Settings,
   Award,
-  BarChart3
+  BarChart3,
+  AlertCircle,
 } from "lucide-react";
+import api from "../api/apiClient"; // assumes same api client used elsewhere
 
 export default function Dashboard() {
   const { role, firstName } = useAuth();
+  const [unpaidCount, setUnpaidCount] = useState(null);
+  const [loadingUnpaid, setLoadingUnpaid] = useState(false);
+
+  useEffect(() => {
+    // only fetch for admin/librarian
+    if (role === "ADMIN" || role === "LIBRARIAN") {
+      fetchUnpaidCount();
+    }
+  }, [role]);
+
+  const fetchUnpaidCount = async () => {
+    setLoadingUnpaid(true);
+    try {
+      const res = await api.get("/borrow/admin/unpaid-fines");
+      const data = res.data || [];
+      setUnpaidCount(Array.isArray(data) ? data.length : 0);
+    } catch (err) {
+      console.error("Failed to load unpaid fines:", err);
+      setUnpaidCount(0);
+    } finally {
+      setLoadingUnpaid(false);
+    }
+  };
 
   const quickActions = [
     {
@@ -58,6 +84,15 @@ export default function Dashboard() {
       link: "/analytics",
       color: "from-indigo-500 to-purple-500",
       show: role === "ADMIN" || role === "LIBRARIAN"
+    },
+    // New Admin Fines quick action
+    {
+      title: "Admin • Fines",
+      description: "View unpaid fines & transaction history",
+      icon: AlertCircle,
+      link: "/admin/fines",
+      color: "from-red-500 to-orange-500",
+      show: role === "ADMIN" || role === "LIBRARIAN"
     }
   ].filter(action => action.show);
 
@@ -83,12 +118,13 @@ export default function Dashboard() {
       color: "bg-emerald-100 text-emerald-600",
       show: true
     },
+    // New Unpaid Fines stat (only for admin/librarian)
     {
-      label: "Reading Streak",
-      value: "7 days",
-      icon: Award,
-      color: "bg-orange-100 text-orange-600",
-      show: role === "USER"
+      label: "Unpaid Fines",
+      value: loadingUnpaid ? "…" : (unpaidCount != null ? String(unpaidCount) : "0"),
+      icon: AlertCircle,
+      color: "bg-red-100 text-red-600",
+      show: role === "ADMIN" || role === "LIBRARIAN"
     }
   ].filter(stat => stat.show);
 
@@ -130,7 +166,7 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
-            <div 
+            <div
               key={index}
               className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all hover:scale-105 transform"
             >
@@ -187,7 +223,7 @@ export default function Dashboard() {
               </h2>
               <div className="space-y-4">
                 {recentActivity.map((activity, index) => (
-                  <div 
+                  <div
                     key={index}
                     className="flex items-start gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors"
                   >
@@ -202,8 +238,8 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-              <Link 
-                to="/activity" 
+              <Link
+                to="/activity"
                 className="mt-6 block text-center text-indigo-600 font-medium hover:text-indigo-700 transition-colors"
               >
                 View all activity →
@@ -217,15 +253,15 @@ export default function Dashboard() {
                 Quick Settings
               </h2>
               <div className="space-y-3">
-                <Link 
-                  to="/settings" 
+                <Link
+                  to="/settings"
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <span className="text-gray-700">Account Settings</span>
                   <ArrowRight className="w-4 h-4 text-gray-400" />
                 </Link>
-                <Link 
-                  to="/preferences" 
+                <Link
+                  to="/preferences"
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <span className="text-gray-700">Reading Preferences</span>
