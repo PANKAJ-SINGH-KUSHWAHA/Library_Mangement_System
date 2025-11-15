@@ -1,10 +1,14 @@
 package com.pankaj.backend.entity;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -14,6 +18,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
@@ -50,14 +55,17 @@ public class BorrowRecord {
     private BorrowStatus status = BorrowStatus.BORROWED;
 
     /** Calculated fine when returned (overdue) */
-    private BigDecimal overdueFine;
+    @Column(name = "overdue_fine", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal overdueFine = BigDecimal.ZERO;
 
-    @PrePersist
-    public void setDueDateDefault() {
-        if (dueDate == null) {
-            dueDate = new Date(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000); // 7 days from now
-        }
-    }
+    /**
+     * How many times this record has been renewed.
+     * Default 0.
+     */
+    @Column(name = "renew_count", nullable = false)
+    @Builder.Default
+    private Integer renewCount = 0;
 
     // Relationships
     @ManyToOne(fetch = FetchType.EAGER)
@@ -67,4 +75,24 @@ public class BorrowRecord {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
+
+    // list of fines created for this borrow (typically one per late return)
+    @OneToMany(mappedBy = "borrowRecord", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<Fine> fines = new ArrayList<>();
+
+    @PrePersist
+    public void prePersistDefaults() {
+        // ensure dueDate defaults to 7 days from now if not set
+        if (dueDate == null) {
+            dueDate = new Date(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000); // 7 days from now
+        }
+        // ensure non-null defaults
+        if (overdueFine == null) {
+            overdueFine = BigDecimal.ZERO;
+        }
+        if (renewCount == null) {
+            renewCount = 0;
+        }
+    }
 }

@@ -61,6 +61,21 @@ export default function BorrowRecords() {
     }
   };
 
+  // ----- Renew function -----
+  const renewRecord = async (recordId, userEmail) => {
+    try {
+      // axios put with no body, only query params: put(url, data, config)
+      await api.put(`/borrow/renew/${recordId}`, null, { params: userEmail ? { email: userEmail } : {} });
+      showNotification("Book renewed successfully!", "success");
+      fetchRecords();
+    } catch (err) {
+      console.error("Error renewing book:", err);
+      // backend should return helpful messages like "You have a free plan — renewals are not allowed."
+      showNotification(err.response?.data || "Failed to renew book", "error");
+    }
+  };
+  // ---------------------------
+
   const toggleSort = (field) => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -337,12 +352,35 @@ export default function BorrowRecords() {
                       </td>
                       <td className="px-6 py-4">
                         {record.status === "BORROWED" ? (
-                          <button
-                            onClick={() => markReturn(record.id)}
-                            className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md hover:scale-105"
-                          >
-                            <CheckCircle className="w-4 h-4" /> Mark Returned
-                          </button>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                              {/* Renew button */}
+                              <button
+                                onClick={() => renewRecord(record.id, record.userEmail)}
+                                className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md hover:scale-105"
+                              >
+                                <ArrowLeft className="w-4 h-4" /> Renew
+                              </button>
+
+                              {/* Mark Returned */}
+                              <button
+                                onClick={() => markReturn(record.id)}
+                                className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md hover:scale-105"
+                              >
+                                <CheckCircle className="w-4 h-4" /> Mark Returned
+                              </button>
+                            </div>
+
+                            {/* Renew metadata (if available from API) */}
+                            <div className="text-xs text-gray-500">
+                              {typeof record.renewCount !== "undefined" && (
+                                <span className="mr-2">Renewals used: <strong>{record.renewCount}</strong></span>
+                              )}
+                              {typeof record.maxRenewals !== "undefined" && (
+                                <span>Allowed: <strong>{record.maxRenewals}</strong></span>
+                              )}
+                            </div>
+                          </div>
                         ) : (
                           <div className="text-xs text-gray-500">
                             <p className="font-medium text-gray-700">Completed</p>
