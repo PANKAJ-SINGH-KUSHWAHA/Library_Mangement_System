@@ -1,5 +1,6 @@
 package com.pankaj.backend.repository;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,7 +15,7 @@ import com.pankaj.backend.entity.User;
 
 public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long> {
 
-    // Fetch all borrow records for a given user
+    // Fetch all borrow records for a given user (load book + user to avoid lazy issues)
     @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.user = :user")
     List<BorrowRecord> findByUser(@Param("user") User user);
 
@@ -38,4 +39,20 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
     // Get all borrow records for a specific book
     @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.book = :book")
     List<BorrowRecord> findByBook(@Param("book") Book book);
+
+    // --- Methods required by scheduler ---
+
+    /**
+     * Find all BORROWED records whose dueDate is strictly before 'before'
+     * (used to detect overdues).
+     */
+    @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.status = :status AND br.dueDate < :before")
+    List<BorrowRecord> findByStatusAndDueDateBefore(@Param("status") BorrowStatus status, @Param("before") Date before);
+
+    /**
+     * Find BORROWED records with dueDate between start (inclusive) and end (exclusive).
+     * Used for "due in 2 days" reminder window.
+     */
+    @Query("SELECT br FROM BorrowRecord br JOIN FETCH br.book JOIN FETCH br.user WHERE br.status = :status AND br.dueDate >= :start AND br.dueDate < :end")
+    List<BorrowRecord> findByStatusAndDueDateBetween(@Param("status") BorrowStatus status, @Param("start") Date start, @Param("end") Date end);
 }

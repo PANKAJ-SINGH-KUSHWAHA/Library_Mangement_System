@@ -21,4 +21,5 @@ public interface BookRepository extends JpaRepository<Book, String> {
     List<Book> findByCategories_NameAndDeletedFalse(String category);
     List<Book> findByAvailableCopiesGreaterThanAndDeletedFalse(int availableCopies);
     List<Book> findByAvailableCopiesEqualsAndDeletedFalse(int availableCopies);
+    List<Book> findByAvailableCopiesLessThan(int threshold);
 }

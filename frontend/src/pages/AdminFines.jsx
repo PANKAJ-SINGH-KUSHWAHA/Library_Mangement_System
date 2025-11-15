@@ -348,7 +348,6 @@ export default function AdminFines() {
                           </div>
                           <div>
                             <div className="font-semibold">{f.userName || "—"}</div>
-                            <div className="text-xs text-gray-500 mt-1">{f.userId ? `ID: ${f.userId}` : ""}</div>
                           </div>
                         </div>
                       </td>
