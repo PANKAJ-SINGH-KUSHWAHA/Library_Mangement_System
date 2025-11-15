@@ -14,6 +14,10 @@ export default function BorrowRecords() {
   const [sortOrder, setSortOrder] = useState("asc");
   const [notification, setNotification] = useState(null);
 
+  // per-row action loaders
+  const [renewingIds, setRenewingIds] = useState([]); // array of record ids being renewed
+  const [returningIds, setReturningIds] = useState([]); // array of record ids being returned
+
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
@@ -51,27 +55,37 @@ export default function BorrowRecords() {
   }, [bookId]);
 
   const markReturn = async (recordId) => {
+    // add to returningIds
+    setReturningIds((prev) => [...prev, recordId]);
     try {
       await api.put(`/borrow/return/${recordId}`);
       showNotification("Book marked as returned!", "success");
-      fetchRecords();
+      await fetchRecords();
     } catch (err) {
       console.error("Error marking book returned:", err);
       showNotification(err.response?.data || "Error marking book as returned", "error");
+    } finally {
+      // remove from returningIds
+      setReturningIds((prev) => prev.filter((id) => id !== recordId));
     }
   };
 
   // ----- Renew function -----
   const renewRecord = async (recordId, userEmail) => {
+    // add to renewingIds
+    setRenewingIds((prev) => [...prev, recordId]);
     try {
       // axios put with no body, only query params: put(url, data, config)
       await api.put(`/borrow/renew/${recordId}`, null, { params: userEmail ? { email: userEmail } : {} });
       showNotification("Book renewed successfully!", "success");
-      fetchRecords();
+      await fetchRecords();
     } catch (err) {
       console.error("Error renewing book:", err);
       // backend should return helpful messages like "You have a free plan — renewals are not allowed."
       showNotification(err.response?.data || "Failed to renew book", "error");
+    } finally {
+      // remove from renewingIds
+      setRenewingIds((prev) => prev.filter((id) => id !== recordId));
     }
   };
   // ---------------------------
@@ -125,6 +139,11 @@ export default function BorrowRecords() {
       </div>
     );
   }
+
+  // small inline spinner element used inside buttons
+  const InlineSpinner = ({ size = 4 }) => (
+    <div className={`w-${size} h-${size} border-2 border-t-transparent border-white rounded-full animate-spin`} />
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50 to-slate-50">
@@ -307,89 +326,113 @@ export default function BorrowRecords() {
                     </td>
                   </tr>
                 ) : (
-                  filteredRecords.map((record) => (
-                    <tr key={record.id} className="hover:bg-orange-50 transition-colors group">
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                            {record.userEmail.charAt(0).toUpperCase()}
-                          </div>
-                          {record.userEmail}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">{record.bookTitle}</td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                          {record.borrowDate
-                            ? formatDate(record.borrowDate)
-                            : record.dueDate
-                            ? formatDate(new Date(new Date(record.dueDate).getTime() - loanDays * 24 * 60 * 60 * 1000))
-                            : "-"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {record.dueDate ? formatDate(record.dueDate) : "-"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {record.returnDate ? formatDate(record.returnDate) : "-"}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        {record.overdueFine ? (
-                          <span className="font-semibold text-red-600">₹{Number(record.overdueFine).toFixed(2)}</span>
-                        ) : (
-                          <span className="text-gray-400">NO FINE</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                            record.status === "BORROWED"
-                              ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
-                              : "bg-green-100 text-green-700 border border-green-200"
-                          }`}
-                        >
-                          {record.status === "BORROWED" ? <AlertCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                          {record.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {record.status === "BORROWED" ? (
-                          <div className="flex flex-col gap-2">
-                            <div className="flex gap-2">
-                              {/* Renew button */}
-                              <button
-                                onClick={() => renewRecord(record.id, record.userEmail)}
-                                className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md hover:scale-105"
-                              >
-                                <ArrowLeft className="w-4 h-4" /> Renew
-                              </button>
-
-                              {/* Mark Returned */}
-                              <button
-                                onClick={() => markReturn(record.id)}
-                                className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md hover:scale-105"
-                              >
-                                <CheckCircle className="w-4 h-4" /> Mark Returned
-                              </button>
+                  filteredRecords.map((record) => {
+                    const isRenewing = renewingIds.includes(record.id);
+                    const isReturning = returningIds.includes(record.id);
+                    return (
+                      <tr key={record.id} className="hover:bg-orange-50 transition-colors group">
+                        <td className="px-6 py-4 text-sm text-gray-700">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                              {record.userEmail.charAt(0).toUpperCase()}
                             </div>
+                            {record.userEmail}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-gray-900">{record.bookTitle}</td>
+                        <td className="px-6 py-4 text-sm text-gray-700">
+                            {record.borrowDate
+                              ? formatDate(record.borrowDate)
+                              : record.dueDate
+                              ? formatDate(new Date(new Date(record.dueDate).getTime() - loanDays * 24 * 60 * 60 * 1000))
+                              : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700">
+                          {record.dueDate ? formatDate(record.dueDate) : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700">
+                          {record.returnDate ? formatDate(record.returnDate) : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {record.overdueFine ? (
+                            <span className="font-semibold text-red-600">₹{Number(record.overdueFine).toFixed(2)}</span>
+                          ) : (
+                            <span className="text-gray-400">NO FINE</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                              record.status === "BORROWED"
+                                ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
+                                : "bg-green-100 text-green-700 border border-green-200"
+                            }`}
+                          >
+                            {record.status === "BORROWED" ? <AlertCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                            {record.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {record.status === "BORROWED" ? (
+                            <div className="flex flex-col gap-2">
+                              <div className="flex gap-2">
+                                {/* Renew button */}
+                                <button
+                                  onClick={() => renewRecord(record.id, record.userEmail)}
+                                  disabled={isRenewing || isReturning}
+                                  className={`inline-flex items-center gap-2 ${isRenewing ? "opacity-80 cursor-wait" : ""} bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md`}
+                                >
+                                  {isRenewing ? (
+                                    <>
+                                      <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin mr-1" />
+                                      Renewing...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ArrowLeft className="w-4 h-4" /> Renew
+                                    </>
+                                  )}
+                                </button>
 
-                            {/* Renew metadata (if available from API) */}
+                                {/* Mark Returned */}
+                                <button
+                                  onClick={() => markReturn(record.id)}
+                                  disabled={isReturning || isRenewing}
+                                  className={`inline-flex items-center gap-2 ${isReturning ? "opacity-80 cursor-wait" : ""} bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md`}
+                                >
+                                  {isReturning ? (
+                                    <>
+                                      <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin mr-1" />
+                                      Returning...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="w-4 h-4" /> Mark Returned
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+
+                              {/* Renew metadata (if available from API) */}
+                              <div className="text-xs text-gray-500">
+                                {typeof record.renewCount !== "undefined" && (
+                                  <span className="mr-2">Renewals used: <strong>{record.renewCount}</strong></span>
+                                )}
+                                {typeof record.maxRenewals !== "undefined" && (
+                                  <span>Allowed: <strong>{record.maxRenewals}</strong></span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
                             <div className="text-xs text-gray-500">
-                              {typeof record.renewCount !== "undefined" && (
-                                <span className="mr-2">Renewals used: <strong>{record.renewCount}</strong></span>
-                              )}
-                              {typeof record.maxRenewals !== "undefined" && (
-                                <span>Allowed: <strong>{record.maxRenewals}</strong></span>
-                              )}
+                              <p className="font-medium text-gray-700">Completed</p>
+                              <p>{formatDate(record.returnDate)}</p>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="text-xs text-gray-500">
-                            <p className="font-medium text-gray-700">Completed</p>
-                            <p>{formatDate(record.returnDate)}</p>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

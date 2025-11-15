@@ -34,6 +34,7 @@ import com.pankaj.backend.repository.BorrowRecordRepository;
 import com.pankaj.backend.repository.FineRepository;
 import com.pankaj.backend.repository.MembershipSettingsRepository;
 import com.pankaj.backend.repository.UserRepository;
+import com.pankaj.backend.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -49,6 +50,7 @@ public class BorrowRecordController {
     private final UserRepository userRepository;
     private final MembershipSettingsRepository membershipSettingsRepository;
     private final FineRepository fineRepository;
+    private final NotificationService notificationService;
 
     // business constants
     private static final int RENEWAL_FREE = 0;
@@ -58,6 +60,7 @@ public class BorrowRecordController {
     private static final BigDecimal FINE_PER_DAY = new BigDecimal("15");
     private static final int DEFAULT_LOAN_DAYS = 7;
     private static final int DEFAULT_BORROW_LIMIT = 2;
+    private static final int LOW_STOCK_THRESHOLD = 3;
 
     // ---------------- RENEW ----------------
     @PutMapping("/renew/{recordId}")
@@ -93,6 +96,20 @@ public class BorrowRecordController {
             String msg;
             if (allowedRenewals == 0) msg = "You have a free plan — renewals are not allowed.";
             else msg = "Renewal limit reached for your plan.";
+
+            // send failure notification (best-effort)
+            try {
+                if (record.getUser() != null) {
+                    notificationService.createAndSendEmailNotification(
+                            record.getUser(),
+                            "Renewal Failed — " + (record.getBook() != null ? record.getBook().getTitle() : "Book"),
+                            "<p>Hi " + safeName(record.getUser()) + ",</p><p>" + msg + "</p>"
+                    );
+                }
+            } catch (Exception ex) {
+                logger.warn("Failed to send renewal-failure notification: {}", ex.getMessage());
+            }
+
             return ResponseEntity.badRequest().body(msg);
         }
 
@@ -106,6 +123,21 @@ public class BorrowRecordController {
         record.setRenewCount(record.getRenewCount() + 1);
 
         BorrowRecord saved = borrowRecordRepository.save(record);
+
+        // send success notification
+        try {
+            if (saved.getUser() != null) {
+                notificationService.createAndSendEmailNotification(
+                        saved.getUser(),
+                        "Renewal Successful — " + (saved.getBook() != null ? saved.getBook().getTitle() : "Book"),
+                        "<p>Hi " + safeName(saved.getUser()) + ",</p>"
+                                + "<p>Your renewal was successful. New due date: <b>" + saved.getDueDate() + "</b></p>"
+                );
+            }
+        } catch (Exception ex) {
+            logger.warn("Failed to send renewal-success notification: {}", ex.getMessage());
+        }
+
         return ResponseEntity.ok(saved);
     }
 
@@ -155,6 +187,39 @@ public class BorrowRecordController {
         }
 
         BorrowRecord saved = borrowRecordRepository.save(record);
+
+        // send return confirmation (and fine info if any)
+        try {
+            if (saved.getUser() != null) {
+                String html = "<p>Hi " + safeName(saved.getUser()) + ",</p>"
+                        + "<p>We received your returned book <b>" + (saved.getBook() != null ? saved.getBook().getTitle() : "Book") + "</b> on " + saved.getReturnDate() + ".</p>";
+                if (saved.getOverdueFine() != null && saved.getOverdueFine().compareTo(BigDecimal.ZERO) > 0) {
+                    html += "<p>Overdue fine: <b>₹" + saved.getOverdueFine() + "</b>. Please pay at the library counter or via the portal.</p>";
+                } else {
+                    html += "<p>Thank you! No fine for this return.</p>";
+                }
+                notificationService.createAndSendEmailNotification(
+                        saved.getUser(),
+                        "Return Confirmation — " + (saved.getBook() != null ? saved.getBook().getTitle() : "Book"),
+                        html
+                );
+            }
+        } catch (Exception ex) {
+            logger.warn("Failed to send return notification: {}", ex.getMessage());
+        }
+
+        // low-stock alert for admins
+        try {
+            if (book != null &&  book.getAvailableCopies() < LOW_STOCK_THRESHOLD) {
+                String subj = "Low stock alert: " + book.getTitle();
+                String body = "<p>Only <b>" + book.getAvailableCopies() + "</b> copies left for <b>" + book.getTitle() + "</b>.</p>"
+                        + "<p>Please review procurement or replacements.</p>";
+                notificationService.notifyAdmins(subj, body);
+            }
+        } catch (Exception ex) {
+            logger.warn("Failed to send low-stock admin notification: {}", ex.getMessage());
+        }
+
         return ResponseEntity.ok(saved);
     }
 
@@ -253,6 +318,20 @@ public class BorrowRecordController {
         if (br != null) {
             br.setOverdueFine(BigDecimal.ZERO);
             borrowRecordRepository.save(br);
+        }
+
+        // notify user that fine was marked paid
+        try {
+            if (fine.getBorrowRecord() != null && fine.getBorrowRecord().getUser() != null) {
+                notificationService.createAndSendEmailNotification(
+                        fine.getBorrowRecord().getUser(),
+                        "Fine Paid — Receipt #" + fine.getId(),
+                        "<p>Hi " + safeName(fine.getBorrowRecord().getUser()) + ",</p>"
+                                + "<p>Your fine of <b>₹" + fine.getAmount() + "</b> was marked as paid on " + fine.getPaidAt() + ".</p>"
+                );
+            }
+        } catch (Exception ex) {
+            logger.warn("Failed to send fine-paid notification: {}", ex.getMessage());
         }
 
         return ResponseEntity.ok(fine);
@@ -378,6 +457,29 @@ public class BorrowRecordController {
 
         BorrowRecord savedRecord = borrowRecordRepository.save(record);
 
+        // send borrow confirmation email + in-app notification
+        try {
+            String subject = "Borrow Confirmation — " + (savedRecord.getBook() != null ? savedRecord.getBook().getTitle() : "Book");
+            String html = "<p>Hi " + safeName(savedRecord.getUser()) + ",</p>"
+                    + "<p>You borrowed <b>" + (savedRecord.getBook() != null ? savedRecord.getBook().getTitle() : "a book") + "</b>.</p>"
+                    + "<p>Borrow Date: " + savedRecord.getBorrowDate() + "<br/>Due Date: " + savedRecord.getDueDate() + "</p>"
+                    + "<p>Fine rate: ₹15/day</p>";
+            notificationService.createAndSendEmailNotification(savedRecord.getUser(), subject, html);
+        } catch (Exception ex) {
+            logger.warn("Failed to send borrow notification: {}", ex.getMessage());
+        }
+
+        // low-stock admin alert
+        try {
+            if (book.getAvailableCopies() < LOW_STOCK_THRESHOLD) {
+                String subj = "Low stock alert: " + book.getTitle();
+                String body = "<p>Only <b>" + book.getAvailableCopies() + "</b> copies left for <b>" + book.getTitle() + "</b>.</p>";
+                notificationService.notifyAdmins(subj, body);
+            }
+        } catch (Exception ex) {
+            logger.warn("Failed to send low-stock admin notification: {}", ex.getMessage());
+        }
+
         return ResponseEntity.ok(savedRecord);
     }
 
@@ -418,4 +520,11 @@ public class BorrowRecordController {
         }
     }
 
+    // helper
+    private String safeName(User u) {
+        if (u == null) return "Member";
+        String fn = u.getFirstName() != null ? u.getFirstName() : "";
+        String ln = u.getLastName() != null ? " " + u.getLastName() : "";
+        return (fn + ln).trim().isEmpty() ? "Member" : (fn + ln).trim();
+    }
 }
