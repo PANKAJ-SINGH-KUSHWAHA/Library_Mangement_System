@@ -12,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -64,83 +66,103 @@ public class BorrowRecordController {
     private static final BigDecimal DAMAGE_FEE = new BigDecimal("1000");
 
     // ---------------- RENEW ----------------
+    // Replace existing renewBook with this implementation
     @PutMapping("/renew/{recordId}")
     @PreAuthorize("hasAuthority('MEMBER') or hasAnyAuthority('ADMIN','LIBRARIAN')")
     @Transactional
-    public ResponseEntity<?> renewBook(@PathVariable Long recordId, @RequestParam(required = false) String email) {
-        BorrowRecord record = borrowRecordRepository.findById(recordId)
-                .orElseThrow(() -> new RuntimeException("Borrow record not found"));
+    public ResponseEntity<?> renewBook(@PathVariable Long recordId) {
+        try {
+            // Get authenticated user email
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String authEmail = (auth != null) ? auth.getName() : null;
+            if (authEmail == null) {
+                return ResponseEntity.status(401).body("Unauthorized");
+            }
 
-        if (record.getStatus() != BorrowStatus.BORROWED) {
-            return ResponseEntity.badRequest().body("Only borrowed books can be renewed.");
-        }
+            BorrowRecord record = borrowRecordRepository.findById(recordId)
+                    .orElseThrow(() -> new RuntimeException("Borrow record not found"));
 
-        // Ownership check for members (optional)
-        if (email != null && !record.getUser().getEmail().equals(email)) {
-            return ResponseEntity.status(403).body("You cannot renew a record that isn't yours.");
-        }
+            // Only allow renew if status is BORROWED
+            if (record.getStatus() != BorrowStatus.BORROWED) {
+                return ResponseEntity.badRequest().body("Only borrowed books can be renewed.");
+            }
 
-        // Determine user's plan and allowed renewals
-        int allowedRenewals = RENEWAL_FREE;
-        if (record.getUser() != null && record.getUser().getPlan() != null && record.getUser().getPlan().getName() != null) {
-            String planName = record.getUser().getPlan().getName().toLowerCase();
-            if (planName.contains("premium")) allowedRenewals = RENEWAL_PREMIUM;
-            else if (planName.contains("standard")) allowedRenewals = RENEWAL_STANDARD;
-            else allowedRenewals = RENEWAL_FREE;
-        } else {
-            allowedRenewals = RENEWAL_FREE;
-        }
+            // If user is MEMBER, ensure they own the record
+            boolean isAdminOrLibrarian = auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ADMIN") || a.getAuthority().equals("LIBRARIAN"));
 
-        if (record.getRenewCount() == null) record.setRenewCount(0);
+            if (!isAdminOrLibrarian) {
+                if (record.getUser() == null || record.getUser().getEmail() == null || !authEmail.equals(record.getUser().getEmail())) {
+                    return ResponseEntity.status(403).body("You cannot renew a record that isn't yours.");
+                }
+            }
 
-        if (record.getRenewCount() >= allowedRenewals) {
-            String msg;
-            if (allowedRenewals == 0) msg = "You have a free plan — renewals are not allowed.";
-            else msg = "Renewal limit reached for your plan.";
+            // Determine allowed renewals based on user's plan
+            int allowedRenewals = RENEWAL_FREE;
+            if (record.getUser() != null && record.getUser().getPlan() != null && record.getUser().getPlan().getName() != null) {
+                String planName = record.getUser().getPlan().getName().toLowerCase();
+                if (planName.contains("premium")) allowedRenewals = RENEWAL_PREMIUM;
+                else if (planName.contains("standard")) allowedRenewals = RENEWAL_STANDARD;
+                else allowedRenewals = RENEWAL_FREE;
+            } else {
+                allowedRenewals = RENEWAL_FREE;
+            }
 
-            // send failure notification (best-effort)
+            if (record.getRenewCount() == null) record.setRenewCount(0);
+
+            if (record.getRenewCount() >= allowedRenewals) {
+                String msg;
+                if (allowedRenewals == 0) msg = "You have a free plan — renewals are not allowed.";
+                else msg = "Renewal limit reached for your plan.";
+
+                // send failure notification (best-effort)
+                try {
+                    if (record.getUser() != null) {
+                        notificationService.createAndSendEmailNotification(
+                                record.getUser(),
+                                "Renewal Failed — " + (record.getBook() != null ? record.getBook().getTitle() : "Book"),
+                                "<p>Hi " + safeName(record.getUser()) + ",</p><p>" + msg + "</p>"
+                        );
+                    }
+                } catch (Exception ex) {
+                    logger.warn("Failed to send renewal-failure notification: {}", ex.getMessage());
+                }
+
+                return ResponseEntity.badRequest().body(msg);
+            }
+
+            // Extend due date by RENEW_EXTEND_DAYS
+            Date existingDue = record.getDueDate() != null ? record.getDueDate() : new Date();
+            long extendMillis = (long) RENEW_EXTEND_DAYS * 24 * 60 * 60 * 1000;
+            Date newDue = new Date(existingDue.getTime() + extendMillis);
+            record.setDueDate(newDue);
+
+            // increment renew count
+            record.setRenewCount(record.getRenewCount() + 1);
+
+            BorrowRecord saved = borrowRecordRepository.save(record);
+
+            // send success notification
             try {
-                if (record.getUser() != null) {
+                if (saved.getUser() != null) {
                     notificationService.createAndSendEmailNotification(
-                            record.getUser(),
-                            "Renewal Failed — " + (record.getBook() != null ? record.getBook().getTitle() : "Book"),
-                            "<p>Hi " + safeName(record.getUser()) + ",</p><p>" + msg + "</p>"
+                            saved.getUser(),
+                            "Renewal Successful — " + (saved.getBook() != null ? saved.getBook().getTitle() : "Book"),
+                            "<p>Hi " + safeName(saved.getUser()) + ",</p>"
+                                    + "<p>Your renewal was successful. New due date: <b>" + saved.getDueDate() + "</b></p>"
                     );
                 }
             } catch (Exception ex) {
-                logger.warn("Failed to send renewal-failure notification: {}", ex.getMessage());
+                logger.warn("Failed to send renewal-success notification: {}", ex.getMessage());
             }
 
-            return ResponseEntity.badRequest().body(msg);
+            return ResponseEntity.ok(saved);
+        } catch (Exception e) {
+            logger.error("Error renewing borrow record: ", e);
+            return ResponseEntity.badRequest().body("Error renewing record: " + e.getMessage());
         }
-
-        // Extend due date by RENEW_EXTEND_DAYS
-        Date existingDue = record.getDueDate() != null ? record.getDueDate() : new Date();
-        long extendMillis = (long) RENEW_EXTEND_DAYS * 24 * 60 * 60 * 1000;
-        Date newDue = new Date(existingDue.getTime() + extendMillis);
-        record.setDueDate(newDue);
-
-        // increment renew count
-        record.setRenewCount(record.getRenewCount() + 1);
-
-        BorrowRecord saved = borrowRecordRepository.save(record);
-
-        // send success notification
-        try {
-            if (saved.getUser() != null) {
-                notificationService.createAndSendEmailNotification(
-                        saved.getUser(),
-                        "Renewal Successful — " + (saved.getBook() != null ? saved.getBook().getTitle() : "Book"),
-                        "<p>Hi " + safeName(saved.getUser()) + ",</p>"
-                                + "<p>Your renewal was successful. New due date: <b>" + saved.getDueDate() + "</b></p>"
-                );
-            }
-        } catch (Exception ex) {
-            logger.warn("Failed to send renewal-success notification: {}", ex.getMessage());
-        }
-
-        return ResponseEntity.ok(saved);
     }
+
 
     // ---------------- RETURN (calculate fine @ ₹15/day) ----------------
     @PutMapping("/return/{recordId}")

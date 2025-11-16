@@ -60,8 +60,6 @@ const Navbar = () => {
         const data = res.data || [];
         setUnpaidCount(Array.isArray(data) ? data.length : 0);
       } else if (user.role === "MEMBER") {
-        // member view: only their unpaid fines (backend: GET /api/fines/my/unpaid)
-        // make sure your backend provides this endpoint
         const res = await api.get("/fines/my/unpaid");
         const data = res.data || [];
         setUnpaidCount(Array.isArray(data) ? data.length : 0);

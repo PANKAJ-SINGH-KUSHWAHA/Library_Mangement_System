@@ -132,4 +132,46 @@ public class FineController {
             return ResponseEntity.badRequest().body("Error paying fine: " + e.getMessage());
         }
     }
+
+    // Get unpaid fines for currently authenticated user
+    @GetMapping("/my/unpaid")
+    public ResponseEntity<?> getMyUnpaidFines() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String email = (auth != null) ? auth.getName() : null;
+            if (email == null) return ResponseEntity.status(401).body("Unauthorized");
+
+            List<Fine> fines = fineRepository.findAll();
+            List<FineDTO> dtos = fines.stream()
+                .filter(f -> {
+                    BorrowRecord br = f.getBorrowRecord();
+                    return br != null
+                        && br.getUser() != null
+                        && email.equals(br.getUser().getEmail())
+                        && (f.getPaid() == null || !f.getPaid()); // only unpaid
+                })
+                .map(f -> {
+                    BorrowRecord br = f.getBorrowRecord();
+                    FineDTO d = new FineDTO();
+                    d.fineId = f.getId();
+                    d.borrowRecordId = br != null ? br.getId() : null;
+                    d.bookTitle = br != null && br.getBook() != null ? br.getBook().getTitle() : null;
+                    d.userEmail = br != null && br.getUser() != null ? br.getUser().getEmail() : null;
+                    d.amount = f.getAmount();
+                    d.paid = f.getPaid();
+                    d.createdAt = f.getCreatedAt();
+                    d.paidAt = f.getPaidAt();
+                    d.paidBy = f.getPaidBy();
+                    d.dueDate = br != null ? br.getDueDate() : null;
+                    d.returnDate = br != null ? br.getReturnDate() : null;
+                    return d;
+                }).collect(Collectors.toList());
+
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            logger.error("Error fetching user unpaid fines: ", e);
+            return ResponseEntity.badRequest().body("Error fetching unpaid fines: " + e.getMessage());
+        }
+    }
+
 }

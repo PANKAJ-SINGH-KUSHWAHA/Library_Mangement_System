@@ -11,12 +11,20 @@ export default function MyBorrowedBooks() {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // NEW: renewing state + simple notification
+  const [renewingId, setRenewingId] = useState(null);
+  const [notif, setNotif] = useState(null); // { type: 'success'|'error', message: string }
+
+  const showNotif = (message, type = "success") => {
+    setNotif({ message, type });
+    setTimeout(() => setNotif(null), 3500);
+  };
+
   const fetchRecords = async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
     setError(null);
     try {
       const res = await api.get(`/borrow/${user.email}`);
-      console.log(res.data);
       setRecords(res.data);
     } catch (err) {
       console.error("Error fetching borrowed books:", err.response?.data || err.message);
@@ -24,6 +32,30 @@ export default function MyBorrowedBooks() {
     } finally {
       setLoading(false);
       if (showRefreshing) setRefreshing(false);
+    }
+  };
+
+  // NEW: renew handler
+  const renewRecord = async (recordId) => {
+    setRenewingId(recordId);
+    try {
+      // call backend (api baseURL should map to http://localhost:8081/api)
+      const res = await api.put(`/borrow/renew/${recordId}`);
+      // backend returns updated BorrowRecord — refresh list and show message with new due date
+      await fetchRecords();
+      const newDue = res?.data?.dueDate;
+      showNotif(
+        newDue
+          ? `Renewal successful — new due date: ${formatDate(newDue)}`
+          : "Renewal successful — due date updated.",
+        "success"
+      );
+    } catch (err) {
+      console.error("Error renewing record:", err.response?.data || err.message);
+      const msg = err.response?.data || "Failed to renew. Please try again.";
+      showNotif(msg, "error");
+    } finally {
+      setRenewingId(null);
     }
   };
 
@@ -48,6 +80,17 @@ export default function MyBorrowedBooks() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
       <div className="max-w-5xl mx-auto">
+        {/* Inline notification */}
+        {notif && (
+          <div
+            className={`fixed top-5 right-5 z-50 rounded-lg p-3 shadow-lg ${
+              notif.type === "success" ? "bg-green-50 border border-green-300 text-green-800" : "bg-red-50 border border-red-300 text-red-800"
+            }`}
+          >
+            <div className="text-sm font-medium">{notif.message}</div>
+          </div>
+        )}
+
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
@@ -100,38 +143,53 @@ export default function MyBorrowedBooks() {
                   <div className="mb-4">
                     <h3 className="text-xl font-bold text-gray-900 mb-2">{rec.bookTitle}</h3>
                     <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-sm">
-                        Due: {rec.dueDate ? formatDate(rec.dueDate) : 'Not set'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-sm">
-                        Return Date: {rec.returnDate ? formatDate(rec.returnDate) : 'Not returned'}
-                      </span>
-                    </div>
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-sm">
+                          Due: {rec.dueDate ? formatDate(rec.dueDate) : 'Not set'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-sm">
+                          Return Date: {rec.returnDate ? formatDate(rec.returnDate) : 'Not returned'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  
+
                   <div className="mt-auto pt-4 border-t border-gray-100">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-gray-500" />
                         <span className="text-sm text-gray-600">Status:</span>
                       </div>
-                      {rec.status === "BORROWED" ? (
-                        <span className="inline-flex items-center gap-1.5 bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">
-                          <AlertCircle className="w-4 h-4" />
-                          Borrowed
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-                          <CheckCircle className="w-4 h-4" />
-                          Returned
-                        </span>
-                      )}
+
+                      <div className="flex items-center gap-3">
+                        {rec.status === "BORROWED" ? (
+                          <>
+                            <span className="inline-flex items-center gap-1.5 bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">
+                              <AlertCircle className="w-4 h-4" />
+                              Borrowed
+                            </span>
+
+                            {/* Renew button */}
+                            <button
+                              onClick={() => renewRecord(rec.id)}
+                              disabled={renewingId === rec.id}
+                              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-sm font-medium"
+                            >
+                              <RefreshCcw className={`w-4 h-4 ${renewingId === rec.id ? "animate-spin" : ""}`} />
+                              {renewingId === rec.id ? "Renewing..." : "Renew"}
+                            </button>
+                          </>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                            <CheckCircle className="w-4 h-4" />
+                            Returned
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
