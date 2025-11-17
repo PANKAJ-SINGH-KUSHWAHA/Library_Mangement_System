@@ -16,7 +16,7 @@ import {
   BarChart3,
   AlertCircle,
 } from "lucide-react";
-import api from "../api/apiClient"; // assumes same api client used elsewhere
+import api from "../api/apiClient";
 
 export default function Dashboard() {
   const { role, firstName } = useAuth();
@@ -61,7 +61,7 @@ export default function Dashboard() {
       color: "from-purple-500 to-pink-500",
       show: role === "MEMBER"
     },
-     {
+    {
     title: "My Fines",
     description: "View & pay your fines",
     icon: AlertCircle,
@@ -126,7 +126,6 @@ export default function Dashboard() {
       color: "bg-emerald-100 text-emerald-600",
       show: true
     },
-    // New Unpaid Fines stat (only for admin/librarian)
     {
       label: "Unpaid Fines",
       value: loadingUnpaid ? "…" : (unpaidCount != null ? String(unpaidCount) : "0"),

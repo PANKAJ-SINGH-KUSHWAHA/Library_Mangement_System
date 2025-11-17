@@ -135,7 +135,7 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 text-white hover:opacity-90 transition-opacity">
-            <BookOpen className="w-8 h-8" />
+            <img src="/public/librario.png" alt="Librario Logo" className="w-10 h-10 rounded-full object-contain" />
             <span className="font-bold text-2xl tracking-tight">Librario</span>
           </Link>
 

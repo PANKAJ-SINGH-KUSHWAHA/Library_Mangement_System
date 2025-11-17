@@ -1,4 +1,4 @@
-import { AlertCircle, BookOpen, Calendar, CheckCircle, Clock, Library, RefreshCcw } from "lucide-react";
+import { AlertCircle, BookOpen, Calendar, CheckCircle, Clock, Library, RefreshCcw, Sparkles, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../api/apiClient";
 import { useAuth } from "../context/AuthContext";
@@ -10,10 +10,9 @@ export default function MyBorrowedBooks() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  // NEW: renewing state + simple notification
   const [renewingId, setRenewingId] = useState(null);
-  const [notif, setNotif] = useState(null); // { type: 'success'|'error', message: string }
+  const [notif, setNotif] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const showNotif = (message, type = "success") => {
     setNotif({ message, type });
@@ -35,13 +34,10 @@ export default function MyBorrowedBooks() {
     }
   };
 
-  // NEW: renew handler
   const renewRecord = async (recordId) => {
     setRenewingId(recordId);
     try {
-      // call backend (api baseURL should map to http://localhost:8081/api)
       const res = await api.put(`/borrow/renew/${recordId}`);
-      // backend returns updated BorrowRecord — refresh list and show message with new due date
       await fetchRecords();
       const newDue = res?.data?.dueDate;
       showNotif(
@@ -59,137 +55,226 @@ export default function MyBorrowedBooks() {
     }
   };
 
+  // Filter and sort records - latest books at top (by id or borrow date)
+  const filteredRecords = records
+    .filter((rec) =>
+      rec.bookTitle.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => b.id - a.id); // Sort by ID descending (latest first)
+
   useEffect(() => {
     if (user?.email) {
       fetchRecords();
     }
-  }, [user]); // re-run when user becomes available
+  }, [user]);
 
   if (!user) {
     return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <div className="text-center p-8 max-w-md mx-auto">
-          <AlertCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Authentication Required</h2>
-          <p className="text-gray-600">Please log in to view your borrowed books.</p>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-6">
+        <div className="text-center p-12 max-w-md mx-auto bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl">
+          <div className="bg-gradient-to-br from-orange-400 to-pink-500 p-4 rounded-2xl w-20 h-20 flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-3xl font-bold text-white mb-3">Authentication Required</h2>
+          <p className="text-purple-200 text-lg">Please log in to view your borrowed books.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
-      <div className="max-w-5xl mx-auto">
-        {/* Inline notification */}
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4 sm:p-6 lg:p-8">
+      {/* Animated background elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+      </div>
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* Enhanced notification */}
         {notif && (
-          <div
-            className={`fixed top-5 right-5 z-50 rounded-lg p-3 shadow-lg ${
-              notif.type === "success" ? "bg-green-50 border border-green-300 text-green-800" : "bg-red-50 border border-red-300 text-red-800"
-            }`}
-          >
-            <div className="text-sm font-medium">{notif.message}</div>
+          <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-5 duration-300">
+            <div
+              className={`rounded-2xl p-4 shadow-2xl backdrop-blur-xl border ${
+                notif.type === "success" 
+                  ? "bg-emerald-500/90 border-emerald-400/50 text-white" 
+                  : "bg-rose-500/90 border-rose-400/50 text-white"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                {notif.type === "success" ? (
+                  <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                )}
+                <div className="font-medium">{notif.message}</div>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl shadow-lg">
-              <Library className="w-6 h-6 text-white" />
+        {/* Premium Header Section */}
+        <div className="mb-8 sm:mb-12">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-6">
+            <div className="flex items-start gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl blur-xl opacity-60"></div>
+                <div className="relative bg-gradient-to-br from-purple-500 to-pink-600 p-4 rounded-2xl shadow-xl">
+                  <Library className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-700 via-pink-700 to-purple-700">
+                    My Borrowed Books
+                  </h1>
+                </div>
+                <p className="text-gray-700 text-base sm:text-lg font-medium">
+                  Track and manage your reading journey
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Borrowed Books</h1>
-              <p className="text-gray-600 text-sm sm:text-base">
-                Manage and track your borrowed items
-              </p>
+            <button
+              onClick={() => fetchRecords(true)}
+              disabled={refreshing}
+              className="group relative inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-xl px-6 py-3 rounded-xl shadow-xl hover:shadow-2xl border border-white/20 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCcw className={`w-5 h-5 transition-transform ${refreshing ? 'animate-spin' : 'group-hover:rotate-180 duration-500'}`} />
+              <span className="font-semibold">Refresh</span>
+            </button>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative max-w-2xl mx-auto">
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl blur-xl"></div>
+            <div className="relative bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-xl overflow-hidden">
+              <div className="flex items-center gap-3 p-4">
+                <Search className="w-5 h-5 text-purple-300 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search books by title..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 bg-transparent text-gray-800 placeholder-gray-500 focus:outline-none text-base font-medium"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="text-purple-700 hover:text-purple-900 transition-colors px-2"
+                  >
+                    <span className="text-sm font-semibold">Clear</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-          <button
-            onClick={() => fetchRecords(true)}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-lg text-gray-700 shadow-sm hover:shadow border border-gray-200 transition-all hover:bg-gray-50"
-          >
-            <RefreshCcw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
         </div>
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
+          <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl p-12">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-300/30 border-t-purple-400"></div>
+                <div className="absolute inset-0 rounded-full bg-purple-500/20 blur-xl"></div>
+              </div>
+              <p className="text-gray-700 font-medium">Loading your books...</p>
             </div>
           </div>
         ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-            <p className="text-red-700">{error}</p>
+          <div className="bg-rose-500/20 backdrop-blur-xl border border-rose-400/30 rounded-3xl p-8 text-center shadow-2xl">
+            <div className="bg-gradient-to-br from-rose-400 to-red-500 p-4 rounded-2xl w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-white" />
+            </div>
+            <p className="text-rose-100 text-lg font-medium">{error}</p>
           </div>
         ) : records.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-            <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Books Borrowed</h3>
-            <p className="text-gray-600">You haven't borrowed any books yet.</p>
+          <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl p-12 text-center">
+            <div className="bg-gradient-to-br from-slate-400 to-slate-500 p-6 rounded-2xl w-24 h-24 flex items-center justify-center mx-auto mb-6">
+              <BookOpen className="w-12 h-12 text-white" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">No Books Borrowed</h3>
+            <p className="text-gray-700 text-lg">Start your reading adventure today!</p>
+          </div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl p-12 text-center">
+            <div className="bg-gradient-to-br from-slate-400 to-slate-500 p-6 rounded-2xl w-24 h-24 flex items-center justify-center mx-auto mb-6">
+              <Search className="w-12 h-12 text-white" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">No Books Found</h3>
+            <p className="text-gray-700 text-lg">Try a different search term</p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {records.map((rec) => (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredRecords.map((rec) => (
               <div
                 key={rec.id}
-                className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 p-6"
+                className="group relative bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden hover:-translate-y-1"
               >
-                <div className="flex flex-col h-full">
-                  <div className="mb-4">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{rec.bookTitle}</h3>
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar className="w-4 h-4" />
-                        <span className="text-sm">
-                          Due: {rec.dueDate ? formatDate(rec.dueDate) : 'Not set'}
-                        </span>
+                {/* Gradient overlay on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-pink-500/0 group-hover:from-purple-500/10 group-hover:to-pink-500/10 transition-all duration-300"></div>
+                
+                <div className="relative p-6 flex flex-col h-full">
+                  {/* Book Title Section */}
+                  <div className="mb-6">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="bg-gradient-to-br from-purple-400 to-pink-500 p-2 rounded-lg">
+                        <BookOpen className="w-5 h-5 text-white" />
                       </div>
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar className="w-4 h-4" />
-                        <span className="text-sm">
-                          Return Date: {rec.returnDate ? formatDate(rec.returnDate) : 'Not returned'}
-                        </span>
+                      <h3 className="text-xl font-bold text-gray-800 leading-tight flex-1">
+                        {rec.bookTitle}
+                      </h3>
+                    </div>
+                    
+                    {/* Date Information */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 bg-white/5 rounded-lg p-3 border border-white/10">
+                        <Calendar className="w-4 h-4 text-purple-300 flex-shrink-0" />
+                        <div className="flex-1">
+                          <span className="text-purple-700 text-xs font-medium block mb-0.5">Due Date</span>
+                          <span className="text-gray-800 text-sm font-semibold">
+                            {rec.dueDate ? formatDate(rec.dueDate) : 'Not set'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 bg-white/5 rounded-lg p-3 border border-white/10">
+                        <Clock className="w-4 h-4 text-purple-300 flex-shrink-0" />
+                        <div className="flex-1">
+                          <span className="text-purple-700 text-xs font-medium block mb-0.5">Return Date</span>
+                          <span className="text-gray-800 text-sm font-semibold">
+                            {rec.returnDate ? formatDate(rec.returnDate) : 'Not returned'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-auto pt-4 border-t border-gray-100">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm text-gray-600">Status:</span>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        {rec.status === "BORROWED" ? (
-                          <>
-                            <span className="inline-flex items-center gap-1.5 bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">
-                              <AlertCircle className="w-4 h-4" />
-                              Borrowed
-                            </span>
-
-                            {/* Renew button */}
-                            <button
-                              onClick={() => renewRecord(rec.id)}
-                              disabled={renewingId === rec.id}
-                              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-sm font-medium"
-                            >
-                              <RefreshCcw className={`w-4 h-4 ${renewingId === rec.id ? "animate-spin" : ""}`} />
-                              {renewingId === rec.id ? "Renewing..." : "Renew"}
-                            </button>
-                          </>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-                            <CheckCircle className="w-4 h-4" />
-                            Returned
+                  {/* Status and Action Section */}
+                  <div className="mt-auto pt-6 border-t border-white/10">
+                    <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                      {rec.status === "BORROWED" ? (
+                        <>
+                          <span className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg">
+                            <AlertCircle className="w-4 h-4" />
+                            Borrowed
                           </span>
-                        )}
-                      </div>
+
+                          <button
+                            onClick={() => renewRecord(rec.id)}
+                            disabled={renewingId === rec.id}
+                            className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                          >
+                            <RefreshCcw className={`w-4 h-4 ${renewingId === rec.id ? "animate-spin" : ""}`} />
+                            {renewingId === rec.id ? "Renewing..." : "Renew"}
+                          </button>
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-400 to-green-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg w-full">
+                          <CheckCircle className="w-4 h-4" />
+                          Returned
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
