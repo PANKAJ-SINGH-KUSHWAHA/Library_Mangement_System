@@ -93,7 +93,7 @@ export default function MyBorrowedBooks() {
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Enhanced notification */}
         {notif && (
-          <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-5 duration-300">
+          <div className="fixed top-20 right-6 z-50 animate-in slide-in-from-top-5 duration-300">
             <div
               className={`rounded-2xl p-4 shadow-2xl backdrop-blur-xl border ${
                 notif.type === "success" 
