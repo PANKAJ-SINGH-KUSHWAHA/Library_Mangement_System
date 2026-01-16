@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import io.github.cdimascio.dotenv.Dotenv;
 
 @SpringBootApplication
-@EnableScheduling   // ✅ REQUIRED FOR @Scheduled TO WORK
+@EnableScheduling
 public class BackendApplication {
 
     public static void main(String[] args) {
